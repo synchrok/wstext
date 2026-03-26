@@ -211,7 +211,7 @@ Max Concurrent: 8 (Wave 2)
 
 ## TODOs
 
-- [ ] 1. Tauri v2 + Svelte 5 + Monaco Editor 프로젝트 스캐폴딩
+- [x] 1. Tauri v2 + Svelte 5 + Monaco Editor 프로젝트 스캐폴딩
 
   **What to do**:
   - `npm create tauri-app@latest wstext -- --template svelte-ts` 실행하여 프로젝트 생성

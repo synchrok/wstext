@@ -2,8 +2,27 @@
   "active_plan": "C:\\Repository\\wstext\\.sisyphus\\plans\\wstext-editor.md",
   "started_at": "2026-03-26T10:10:14.752Z",
   "session_ids": [
-    "ses_2d71b4406ffeGvSJvmyIrw925f"
+    "ses_2d71b4406ffeGvSJvmyIrw925f",
+    "ses_2d63cfd24ffervGiLF6fFbLzXz",
+    "ses_2d63c4ab0ffeSy52IXcTChxWmm",
+    "ses_2d63a5dc8ffegAilr6y6crWpyx",
+    "ses_2d63a0285ffeRRxuME8NcM2sdq",
+    "ses_2d6398850ffeHjHPjtcoOuv17S",
+    "ses_2d638808affeEJiiHa27tZ4X6b",
+    "ses_2d6392b78ffeXioWzQDzjL6VGD",
+    "ses_2d63808c2ffer1TaeLGq7rxq8B"
   ],
   "plan_name": "wstext-editor",
-  "agent": "atlas"
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "TypeScript 타입 정의 + 공유 인터페이스",
+      "session_id": "ses_2d63c4ab0ffeSy52IXcTChxWmm",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-03-26T10:50:28.855Z"
+    }
+  }
 }
