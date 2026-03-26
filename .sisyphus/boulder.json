@@ -10,7 +10,11 @@
     "ses_2d6398850ffeHjHPjtcoOuv17S",
     "ses_2d638808affeEJiiHa27tZ4X6b",
     "ses_2d6392b78ffeXioWzQDzjL6VGD",
-    "ses_2d63808c2ffer1TaeLGq7rxq8B"
+    "ses_2d63808c2ffer1TaeLGq7rxq8B",
+    "ses_2d617c1b6ffe49DpVTDNFuZ5Al",
+    "ses_2d616fadfffeeP0qndIlwHzWYD",
+    "ses_2d61221d5ffe9gmWgLCzhqB6mU",
+    "ses_2d6129a91ffes5k0cVoxyipJ2p"
   ],
   "plan_name": "wstext-editor",
   "agent": "atlas",
@@ -23,6 +27,15 @@
       "agent": "Sisyphus-Junior",
       "category": "quick",
       "updated_at": "2026-03-26T10:50:28.855Z"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "파일 작업 (New/Open/Save/Save As + 인코딩)",
+      "session_id": "ses_2d6129a91ffes5k0cVoxyipJ2p",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-03-26T11:35:59.242Z"
     }
   }
 }

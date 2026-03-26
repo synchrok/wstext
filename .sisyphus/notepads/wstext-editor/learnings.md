@@ -123,3 +123,66 @@
 ### Next Steps
 - Task 8+: Integrate StatusBar into main App layout
 - Task 15: Implement dropdown menus for encoding/spaces/language selection
+
+## Task 10: File Operations Module (2026-03-26)
+
+### Key Learnings
+- `fileOps` must be a `.svelte.ts` module because it relies on `$state` for untitled counter and tab references.
+- Duplicate-tab prevention should normalize both slash direction and letter case (`\\`→`/`, lowercase) before comparing paths.
+- For safe open flow: read bytes first (`readFile`) for binary/size gates, then decode using `readFileWithEncoding` for encoding/BOM preservation.
+- Large-file UX policy works well as: warning toast at `>5MB`, hard reject at `>50MB`.
+- SaveAs flow is cleanest when fileOps emits a `wstext:tab-saved-as` event and tab store owns path/title mutation.
+
+### Validation Notes
+- `svelte-check` passed with 0 errors/0 warnings after adding `src/lib/fileOps.svelte.ts`.
+
+## Task 11: Tabs Store + TabBar (2026-03-26)
+
+### Key Learnings
+- Tab store should keep Monaco objects in module-local Maps (`tabId -> model`, `tabId -> viewState`) rather than in `TabState` to avoid serialization/reactivity issues.
+- Correct tab switch sequence is: save current `editor.saveViewState()` -> update active id -> `editor.setModel(target)` -> `restoreViewState` (if present) -> `focus()`.
+- Closing tab must always `model.dispose()` and clear both caches; otherwise URI/model reuse causes leaks and stale state.
+- Svelte 5 component callback props pattern (`onTabClick`, `onTabClose`, `onTabMiddleClick`) keeps TabBar presentation-only and avoids store coupling.
+
+### Validation Notes
+- `npm run check` passed (`svelte-check found 0 errors and 0 warnings`).
+- LSP diagnostics clean for:
+  - `src/lib/stores/tabs.svelte.ts`
+  - `src/lib/components/TabBar.svelte`
+
+## Task 12: Zoom + Font Selection + Spaces (2026-03-26)
+
+### Completed
+- Created `src/lib/zoom.ts` with 9 exported functions
+- All zoom/font/tab operations implemented
+- `npm run check`: 0 errors, 0 warnings ✓
+
+### Key Implementation Details
+- **Font size range**: 8-40px (MIN_FONT_SIZE, MAX_FONT_SIZE)
+- **Zoom step**: 2px per wheel event (ZOOM_STEP)
+- **Default font size**: 14px (DEFAULT_FONT_SIZE)
+- **Ctrl+mousewheel**: scroll up = zoom in, scroll down = zoom out
+- **Event cleanup**: setupMouseWheelZoom() returns cleanup function for proper listener removal
+- **Tab size**: setTabSize() supports 2 or 4 spaces with insertSpaces: true
+- **Font family**: MONOSPACE_FONTS array with 9 options (Consolas, Monaco, Menlo, Cascadia Code, Fira Code, JetBrains Mono, Source Code Pro, Courier New, monospace)
+
+### Exported Functions
+1. `zoomIn(editor)` → number (new font size)
+2. `zoomOut(editor)` → number (new font size)
+3. `resetZoom(editor)` → number (DEFAULT_FONT_SIZE)
+4. `setFontSize(editor, size)` → number (clamped size)
+5. `getFontSize(editor)` → number (current size)
+6. `setupMouseWheelZoom(editor, onFontSizeChange)` → cleanup function
+7. `setFontFamily(editor, fontFamily)` → void
+8. `setTabSize(editor, tabSize, model?)` → void (insertSpaces: true)
+9. `MONOSPACE_FONTS` → readonly string[] (9 fonts)
+
+### Integration Notes
+- Works with monaco-editor IStandaloneCodeEditor
+- Callback onFontSizeChange() for persistence to settings store
+- Tab size can target specific model or editor defaults
+- No system font detection (as required)
+- No status bar zoom percentage display (as required)
+
+### Next Steps
+- Task 13+: Wire zoom functions into App.svelte with settings persistence

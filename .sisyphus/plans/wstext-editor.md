@@ -306,7 +306,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 2. TypeScript 타입 정의 + 공유 인터페이스
+- [x] 2. TypeScript 타입 정의 + 공유 인터페이스
 
   **What to do**:
   - `src/lib/types.ts` 생성:
@@ -366,7 +366,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 3. 테마 시스템 (5개 테마 등록 + 전환)
+- [x] 3. 테마 시스템 (5개 테마 등록 + 전환)
 
   **What to do**:
   - `src/lib/themes.ts` 생성:
@@ -444,7 +444,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 4. 유틸리티 모듈 (Atomic Write, 인코딩, 바이너리 감지)
+- [x] 4. 유틸리티 모듈 (Atomic Write, 인코딩, 바이너리 감지)
 
   **What to do**:
   - `src/lib/utils/atomicWrite.ts`:
@@ -530,7 +530,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 5. 설정/환경설정 스토어
+- [x] 5. 설정/환경설정 스토어
 
   **What to do**:
   - `src/lib/stores/settings.svelte.ts` 생성 (Svelte 5 runes):
@@ -596,7 +596,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 6. 앱 메뉴바 + 키보드 단축키
+- [x] 6. 앱 메뉴바 + 키보드 단축키
 
   **What to do**:
   - `src/lib/menu.ts` 생성:
@@ -666,7 +666,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 7. 상태바 컴포넌트
+- [x] 7. 상태바 컴포넌트
 
   **What to do**:
   - `src/lib/components/StatusBar.svelte` 생성:
@@ -723,7 +723,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 8. Markdown 프리뷰 컴포넌트
+- [x] 8. Markdown 프리뷰 컴포넌트
 
   **What to do**:
   - `npm install markdown-it markdown-it-task-lists highlight.js dompurify @types/dompurify @types/markdown-it`
@@ -806,7 +806,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 9. Todo 모드 (인라인 체크박스)
+- [x] 9. Todo 모드 (인라인 체크박스)
 
   **What to do**:
   - `src/lib/todo.ts` 생성:
