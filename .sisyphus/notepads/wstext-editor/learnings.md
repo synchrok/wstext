@@ -186,3 +186,13 @@
 
 ### Next Steps
 - Task 13+: Wire zoom functions into App.svelte with settings persistence
+- Svelte 5 `onMount` does not allow returning a cleanup function from an `async` function. Use an IIFE inside `onMount` instead.
+
+## Task 14: Session Persistence + Crash Recovery (2026-03-26)
+
+### Key Learnings
+- `@tauri-apps/plugin-store` `load()` options in this codebase require `defaults` in `StoreOptions`; `load('session.json', { autoSave: false, defaults: {} })` avoids type errors.
+- Crash sentinel pattern is robust when startup order is: detect sentinel -> restore session -> write sentinel -> start timers.
+- Two-tier autosave separation is practical: frequent lightweight metadata saves (5s) plus slower untitled-content backups (30s) to reduce IO pressure while keeping recovery strong.
+- For file-backed tabs, storing empty `content` and re-reading file content on restore prevents stale persistence and respects external file edits.
+- Clean shutdown should explicitly call `event.preventDefault()` in `onCloseRequested`, perform final save/backup, remove sentinel, then `window.destroy()`.

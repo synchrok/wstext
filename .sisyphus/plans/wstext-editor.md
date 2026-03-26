@@ -876,7 +876,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 10. 파일 작업 (New/Open/Save/Save As + 인코딩)
+- [x] 10. 파일 작업 (New/Open/Save/Save As + 인코딩)
 
   **What to do**:
   - `src/lib/fileOps.svelte.ts` 생성 (Svelte 5 runes):
@@ -984,7 +984,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 11. 멀티탭 관리 (탭바, 모델 스왑, 더티 추적)
+- [x] 11. 멀티탭 관리 (탭바, 모델 스왑, 더티 추적)
 
   **What to do**:
   - `src/lib/stores/tabs.svelte.ts` 생성 (Svelte 5 runes):
@@ -1094,7 +1094,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 12. 줌 (Ctrl+마우스휠) + 폰트 선택 + Spaces 설정
+- [x] 12. 줌 (Ctrl+마우스휠) + 폰트 선택 + Spaces 설정
 
   **What to do**:
   - `src/lib/zoom.ts` 생성:
@@ -1176,7 +1176,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 13. 코드 포맷팅 (JSON/YAML) + 언어 감지/오버라이드
+- [x] 13. 코드 포맷팅 (JSON/YAML) + 언어 감지/오버라이드
 
   **What to do**:
   - `npm install monaco-yaml`
