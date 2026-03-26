@@ -4956,7 +4956,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wstext_scaffold_tmp"
+name = "wstext"
 version = "0.1.0"
 dependencies = [
  "serde",

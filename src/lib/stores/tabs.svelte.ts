@@ -9,13 +9,13 @@ function generateId(): string {
 /**
  * Reactive tab state — Svelte 5 runes.
  * NOTE: .svelte.ts extension required for $state runes.
+ * NOTE: Using a single state object to avoid Svelte 5's restriction on
+ *       exporting reassignable $state primitives.
  */
-
-/** All open tabs */
-export let tabs = $state<TabState[]>([]);
-
-/** ID of the currently active tab */
-export let activeTabId = $state<string | null>(null);
+export const tabStore = $state({
+  tabs: [] as TabState[],
+  activeTabId: null as string | null,
+});
 
 /** View state cache: tabId → Monaco editor view state (cursor/scroll) */
 const viewStateCache = new Map<string, monaco.editor.ICodeEditorViewState | null>();
@@ -23,8 +23,10 @@ const viewStateCache = new Map<string, monaco.editor.ICodeEditorViewState | null
 /** Monaco model cache: tabId → ITextModel */
 const modelCache = new Map<string, monaco.editor.ITextModel>();
 
-/** Derived: the currently active tab object */
-export const activeTab = $derived(tabs.find((t) => t.id === activeTabId) ?? null);
+/** Get the currently active tab object */
+export function getActiveTab() {
+  return tabStore.tabs.find((t) => t.id === tabStore.activeTabId) ?? null;
+}
 
 /**
  * Open a new tab with the given content.
@@ -49,8 +51,8 @@ export function openTab(tabData: Omit<TabState, 'id'>): string {
   }
   modelCache.set(id, model);
 
-  tabs.push(tab);
-  activeTabId = id;
+  tabStore.tabs.push(tab);
+  tabStore.activeTabId = id;
   return id;
 }
 
@@ -59,14 +61,14 @@ export function openTab(tabData: Omit<TabState, 'id'>): string {
  * Saves the current tab's view state and restores the target tab's.
  */
 export function switchTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: string): void {
-  if (tabId === activeTabId) return;
+  if (tabId === tabStore.activeTabId) return;
 
   // Save current view state
-  if (activeTabId) {
-    viewStateCache.set(activeTabId, editor.saveViewState());
+  if (tabStore.activeTabId) {
+    viewStateCache.set(tabStore.activeTabId, editor.saveViewState());
   }
 
-  activeTabId = tabId;
+  tabStore.activeTabId = tabId;
 
   // Switch Monaco model
   const model = modelCache.get(tabId);
@@ -83,10 +85,9 @@ export function switchTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: st
 
 /**
  * Close a tab. Disposes Monaco model and removes from tabs.
- * If there's only one tab and it has no content, just clear it instead.
  */
 export function closeTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: string): void {
-  const idx = tabs.findIndex((t) => t.id === tabId);
+  const idx = tabStore.tabs.findIndex((t) => t.id === tabId);
   if (idx === -1) return;
 
   // Dispose model
@@ -97,10 +98,10 @@ export function closeTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: str
   }
   viewStateCache.delete(tabId);
 
-  tabs.splice(idx, 1);
+  tabStore.tabs.splice(idx, 1);
 
-  if (tabs.length === 0) {
-    activeTabId = null;
+  if (tabStore.tabs.length === 0) {
+    tabStore.activeTabId = null;
     // Clear editor
     const emptyModel = monaco.editor.createModel('', 'plaintext');
     editor.setModel(emptyModel);
@@ -108,9 +109,9 @@ export function closeTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: str
   }
 
   // Switch to nearest tab
-  const newIdx = Math.min(idx, tabs.length - 1);
-  const newTabId = tabs[newIdx].id;
-  activeTabId = newTabId;
+  const newIdx = Math.min(idx, tabStore.tabs.length - 1);
+  const newTabId = tabStore.tabs[newIdx].id;
+  tabStore.activeTabId = newTabId;
 
   const newModel = modelCache.get(newTabId);
   if (newModel) {
@@ -124,7 +125,7 @@ export function closeTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: str
  * Update a tab's content and mark it as dirty.
  */
 export function updateTabContent(tabId: string, content: string): void {
-  const tab = tabs.find((t) => t.id === tabId);
+  const tab = tabStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.content = content;
     tab.isDirty = true;
@@ -135,7 +136,7 @@ export function updateTabContent(tabId: string, content: string): void {
  * Mark a tab as clean (after save).
  */
 export function markTabClean(tabId: string, newPath?: string, newTitle?: string): void {
-  const tab = tabs.find((t) => t.id === tabId);
+  const tab = tabStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.isDirty = false;
     if (newPath) tab.filePath = newPath;
@@ -147,7 +148,7 @@ export function markTabClean(tabId: string, newPath?: string, newTitle?: string)
  * Update tab cursor position.
  */
 export function updateTabCursor(tabId: string, line: number, column: number): void {
-  const tab = tabs.find((t) => t.id === tabId);
+  const tab = tabStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.cursor = { line, column };
   }
@@ -157,7 +158,7 @@ export function updateTabCursor(tabId: string, line: number, column: number): vo
  * Update tab view mode (editor/preview/split).
  */
 export function updateTabViewMode(tabId: string, mode: ViewMode): void {
-  const tab = tabs.find((t) => t.id === tabId);
+  const tab = tabStore.tabs.find((t) => t.id === tabId);
   if (tab) tab.viewMode = mode;
 }
 
@@ -165,7 +166,7 @@ export function updateTabViewMode(tabId: string, mode: ViewMode): void {
  * Update tab language.
  */
 export function updateTabLanguage(tabId: string, language: string): void {
-  const tab = tabs.find((t) => t.id === tabId);
+  const tab = tabStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.language = language;
     const model = modelCache.get(tabId);
@@ -179,11 +180,11 @@ export function updateTabLanguage(tabId: string, language: string): void {
  * Update tab encoding.
  */
 export function updateTabEncoding(tabId: string, encoding: Encoding, hasBOM: boolean): void {
-  const tab = tabs.find((t) => t.id === tabId);
+  const tab = tabStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.encoding = encoding;
     tab.hasBOM = hasBOM;
-    tab.isDirty = true; // Mark dirty since save behavior changes
+    tab.isDirty = true;
   }
 }
 
@@ -198,20 +199,20 @@ export function getTabModel(tabId: string): monaco.editor.ITextModel | undefined
  * Switch to next tab (for Ctrl+Tab).
  */
 export function nextTab(editor: monaco.editor.IStandaloneCodeEditor): void {
-  if (tabs.length < 2 || !activeTabId) return;
-  const idx = tabs.findIndex((t) => t.id === activeTabId);
-  const nextIdx = (idx + 1) % tabs.length;
-  switchTab(editor, tabs[nextIdx].id);
+  if (tabStore.tabs.length < 2 || !tabStore.activeTabId) return;
+  const idx = tabStore.tabs.findIndex((t) => t.id === tabStore.activeTabId);
+  const nextIdx = (idx + 1) % tabStore.tabs.length;
+  switchTab(editor, tabStore.tabs[nextIdx].id);
 }
 
 /**
  * Switch to previous tab (for Ctrl+Shift+Tab).
  */
 export function prevTab(editor: monaco.editor.IStandaloneCodeEditor): void {
-  if (tabs.length < 2 || !activeTabId) return;
-  const idx = tabs.findIndex((t) => t.id === activeTabId);
-  const prevIdx = (idx - 1 + tabs.length) % tabs.length;
-  switchTab(editor, tabs[prevIdx].id);
+  if (tabStore.tabs.length < 2 || !tabStore.activeTabId) return;
+  const idx = tabStore.tabs.findIndex((t) => t.id === tabStore.activeTabId);
+  const prevIdx = (idx - 1 + tabStore.tabs.length) % tabStore.tabs.length;
+  switchTab(editor, tabStore.tabs[prevIdx].id);
 }
 
 /**

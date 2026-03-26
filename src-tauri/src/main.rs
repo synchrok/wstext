@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    wstext_scaffold_tmp_lib::run()
+    wstext_lib::run()
 }

@@ -5,6 +5,7 @@ import type { TabState } from './types';
 import { readFileWithEncoding, writeFileWithEncoding } from './utils/encoding';
 import { isBinaryFile } from './utils/binaryDetection';
 import { detectLanguage } from './utils/fileLanguage';
+import { tabStore } from './stores/tabs.svelte';
 
 /** Emit a notification toast — simple wrapper */
 function showNotification(message: string, type: 'info' | 'warning' | 'error' = 'info'): void {
@@ -14,21 +15,18 @@ function showNotification(message: string, type: 'info' | 'warning' | 'error' = 
 /** Counter for untitled file numbering */
 let untitledCounter = $state(0);
 
-/** Currently open tabs — set by the tab store, readable here */
-let _tabs: TabState[] = $state([]);
+/** setActiveTab function — needs editor reference, provided by App.svelte */
 let _setActiveTab: ((tabId: string) => void) | null = null;
 let _openTabFn: ((tab: Omit<TabState, 'id'>) => string) | null = null;
 
 /**
  * Register the tab management functions.
- * Called by the tab store once it's initialized.
+ * Called by App.svelte once editor is ready.
  */
 export function registerTabFunctions(
-  tabs: TabState[],
   openTabFn: (tab: Omit<TabState, 'id'>) => string,
   setActiveTabFn: (tabId: string) => void
 ): void {
-  _tabs = tabs;
   _openTabFn = openTabFn;
   _setActiveTab = setActiveTabFn;
 }
@@ -80,7 +78,7 @@ export async function openFileByPath(path: string): Promise<string | null> {
 
   // Check if already open — normalize path comparison
   const normalizedPath = path.replace(/\\/g, '/').toLowerCase();
-  const existing = _tabs.find(
+  const existing = tabStore.tabs.find(
     (t) => t.filePath !== null && t.filePath.replace(/\\/g, '/').toLowerCase() === normalizedPath
   );
   if (existing) {

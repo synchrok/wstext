@@ -1261,7 +1261,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 14. 세션 자동저장 + 크래시 복구
+- [x] 14. 세션 자동저장 + 크래시 복구
 
   **What to do**:
   - `src/lib/session.svelte.ts` 생성 (Svelte 5 runes):
@@ -1384,7 +1384,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 15. 메인 레이아웃 통합 + SublimeText 스타일링
+- [x] 15. 메인 레이아웃 통합 + SublimeText 스타일링
 
   **What to do**:
   - `src/App.svelte` 전면 재구성:
@@ -1479,7 +1479,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 16. 엣지 케이스 처리 (바이너리, 대용량, 빈 상태, 탭 오버플로우 등)
+- [x] 16. 엣지 케이스 처리 (바이너리, 대용량, 빈 상태, 탭 오버플로우 등)
 
   **What to do**:
   - **바이너리 파일**: openFile 시 `isBinaryFile()` 체크 → "이 파일은 바이너리 파일입니다. 표시할 수 없습니다." 메시지
@@ -1559,7 +1559,7 @@ Max Concurrent: 8 (Wave 2)
 
 ---
 
-- [ ] 17. 크로스 플랫폼 빌드 + 최종 폴리시
+- [x] 17. 크로스 플랫폼 빌드 + 최종 폴리시
 
   **What to do**:
   - **Windows 빌드**:

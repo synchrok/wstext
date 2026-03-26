@@ -4,18 +4,18 @@ import { BaseDirectory } from '@tauri-apps/plugin-fs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { SessionState, TabState } from './types';
 import { SESSION_VERSION } from './types';
-import { tabs, activeTabId } from './stores/tabs.svelte';
+import { tabStore } from './stores/tabs.svelte';
 import { atomicWriteText } from './utils/atomicWrite';
 
 const SENTINEL_FILE = '.wstext-running';
 const SESSION_STORE_KEY = 'session';
 const BACKUP_DIR = 'backups';
 
-/** Whether the last session was a crash */
-export let wasCrash = $state(false);
-
-/** Whether session is currently being restored */
-export let isRestoring = $state(false);
+/** Session status state — wrapped in object to avoid Svelte 5 export-reassignment restriction */
+export const sessionStatus = $state({
+  wasCrash: false,
+  isRestoring: false,
+});
 
 let sessionSaveTimer: ReturnType<typeof setInterval> | undefined;
 let contentBackupTimer: ReturnType<typeof setInterval> | undefined;
@@ -54,17 +54,17 @@ export async function initSession(): Promise<void> {
   // Check for crash sentinel
   try {
     const sentinelExists = await exists(SENTINEL_FILE, { baseDir: BaseDirectory.AppData });
-    wasCrash = sentinelExists;
+    sessionStatus.wasCrash = sentinelExists;
   } catch {
-    wasCrash = false;
+    sessionStatus.wasCrash = false;
   }
 
   // Restore session
-  isRestoring = true;
+  sessionStatus.isRestoring = true;
   try {
     await restoreSession();
   } finally {
-    isRestoring = false;
+    sessionStatus.isRestoring = false;
   }
 
   // Write sentinel (marks that we're running)
@@ -159,8 +159,8 @@ async function restoreTab(tab: TabState): Promise<void> {
 function buildSessionState(): SessionState {
   return {
     version: SESSION_VERSION,
-    activeTabId,
-    tabs: tabs.map((t) => ({
+    activeTabId: tabStore.activeTabId,
+    tabs: tabStore.tabs.map((t) => ({
       ...t,
       // For file-backed tabs, don't store content (re-read from disk on restore)
       content: t.filePath ? '' : t.content,
@@ -210,7 +210,7 @@ function startAutoSave(): void {
 
   // Tier 2: Content backups — 30 seconds
   contentBackupTimer = setInterval(() => {
-    for (const tab of tabs) {
+    for (const tab of tabStore.tabs) {
       if (tab.isDirty && !tab.filePath) {
         saveContentBackup(tab);
       }
@@ -245,7 +245,7 @@ async function handleCleanExit(): Promise<void> {
     await saveSessionMetadata();
 
     // Back up any dirty untitled tabs
-    for (const tab of tabs) {
+    for (const tab of tabStore.tabs) {
       if (tab.isDirty && !tab.filePath) {
         await saveContentBackup(tab);
       }

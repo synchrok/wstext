@@ -6,9 +6,8 @@
   import { registerAllThemes, setTheme, getThemeColors } from './lib/themes';
   import { appSettings, loadSettings, updateSetting } from './lib/stores/settings.svelte';
   import {
-    tabs,
-    activeTabId,
-    activeTab,
+    tabStore,
+    getActiveTab,
     openTab,
     switchTab,
     closeTab,
@@ -62,6 +61,11 @@
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
 
+  // Local reactive aliases for tabStore
+  let tabs = $derived(tabStore.tabs);
+  let activeTabId = $derived(tabStore.activeTabId);
+  let activeTab = $derived(getActiveTab());
+
   // Derived theme colors
   let themeColors = $derived(getThemeColors(appSettings.theme));
 
@@ -108,8 +112,8 @@
         insertSpaces: true,
       });
 
-      // Register tab functions (avoids circular imports)
-      registerTabFunctions(tabs, openTab, (id) => switchTab(editor, id));
+      // Register tab functions (editor reference needed for switchTab)
+      registerTabFunctions(openTab, (id) => switchTab(editor, id));
 
       // Setup zoom (Ctrl+mousewheel)
       zoomCleanup = setupMouseWheelZoom(editor, (size) => {
