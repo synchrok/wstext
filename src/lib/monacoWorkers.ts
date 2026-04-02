@@ -10,6 +10,7 @@ import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 // @ts-ignore - Local re-export required (direct import of monaco-yaml/yaml.worker.js fails in Vite)
 import yamlWorker from './yaml.worker?worker';
+import * as monaco from 'monaco-editor';
 import { configureMonacoYaml } from 'monaco-yaml';
 
 // @ts-ignore - MonacoEnvironment is a Vite-specific global
@@ -25,8 +26,8 @@ self.MonacoEnvironment = {
 };
 
 // Configure YAML language support
-configureMonacoYaml(
-  // @ts-ignore
-  typeof globalThis !== 'undefined' ? globalThis : window,
-  { validate: true, enableSchemaRequest: false, schemas: [] }
-);
+configureMonacoYaml(monaco, {
+  validate: true,
+  enableSchemaRequest: false,
+  schemas: [],
+});

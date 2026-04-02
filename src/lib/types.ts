@@ -100,6 +100,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fontFamily: "Consolas, 'Courier New', monospace",
   fontSize: 14,
   tabSize: 4,
-  wordWrap: 'off',
+  wordWrap: 'on',
   minimap: true,
 };

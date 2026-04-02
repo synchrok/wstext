@@ -38,40 +38,43 @@
 </script>
 
 <div class="tab-bar" style:background-color={bgColor} style:border-bottom="1px solid {borderColor}">
-  {#each tabs as tab (tab.id)}
-    <div
-      class="tab"
-      class:active={tab.id === activeTabId}
-      style:background-color={tab.id === activeTabId ? tabActiveBg : tabInactiveBg}
-      style:color={tab.id === activeTabId ? tabActiveFg : tabInactiveFg}
-      style:border-right="1px solid {borderColor}"
-      role="tab"
-      tabindex="0"
-      aria-selected={tab.id === activeTabId}
-      onclick={() => onTabClick?.(tab.id)}
-      onkeydown={(e) => e.key === 'Enter' && onTabClick?.(tab.id)}
-      onmousedown={(e) => handleMiddleClick(e, tab.id)}
-    >
-      <span class="tab-title" title={tab.filePath ?? tab.title}>
-        {tab.title}
-      </span>
-      {#if tab.isDirty}
-        <span class="tab-dirty" title="Unsaved changes">●</span>
-      {/if}
-      <button
-        class="tab-close"
-        type="button"
-        title="Close tab"
-        onclick={(e) => {
-          e.stopPropagation();
-          onTabClose?.(tab.id);
-        }}
-        aria-label="Close {tab.title}"
+  <!-- Tab list — NO drag region, tabs must be clickable -->
+  <div class="tabs-area">
+    {#each tabs as tab (tab.id)}
+      <div
+        class="tab"
+        class:active={tab.id === activeTabId}
+        style:background-color={tab.id === activeTabId ? tabActiveBg : tabInactiveBg}
+        style:color={tab.id === activeTabId ? tabActiveFg : tabInactiveFg}
+        style:border-right="1px solid {borderColor}"
+        role="tab"
+        tabindex="0"
+        aria-selected={tab.id === activeTabId}
+        onclick={() => onTabClick?.(tab.id)}
+        onkeydown={(e) => e.key === 'Enter' && onTabClick?.(tab.id)}
+        onmousedown={(e) => handleMiddleClick(e, tab.id)}
       >
-        ×
-      </button>
-    </div>
-  {/each}
+        <span class="tab-title" title={tab.filePath ?? tab.title}>
+          {tab.title}
+        </span>
+        {#if tab.isDirty}
+          <span class="tab-dirty" title="Unsaved changes">●</span>
+        {/if}
+        <button
+          class="tab-close"
+          type="button"
+          title="Close tab"
+          onclick={(e) => {
+            e.stopPropagation();
+            onTabClose?.(tab.id);
+          }}
+          aria-label="Close {tab.title}"
+        >
+          ×
+        </button>
+      </div>
+    {/each}
+  </div>
 </div>
 
 <style>
@@ -79,15 +82,24 @@
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    overflow-x: auto;
-    overflow-y: hidden;
     flex-shrink: 0;
     height: 34px;
-    scrollbar-width: none; /* Firefox */
   }
 
-  .tab-bar::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+  .tabs-area {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 1;
+    min-width: 0;
+    scrollbar-width: none;
+    flex: 1;
+  }
+
+  .tabs-area::-webkit-scrollbar {
+    display: none;
   }
 
   .tab {

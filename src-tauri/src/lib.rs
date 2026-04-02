@@ -1,4 +1,6 @@
+// transparent + borderless + shadowless
 use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -6,10 +8,15 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() & !StateFlags::DECORATIONS)
+                .build(),
+        )
         .setup(|app| {
-            // Show window after state restoration (macOS fullscreen bug workaround)
             let window = app.get_webview_window("main").unwrap();
+            let _ = window.set_decorations(false);
+            let _ = window.set_shadow(false);
             window.show().unwrap();
             Ok(())
         })

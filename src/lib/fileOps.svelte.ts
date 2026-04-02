@@ -49,6 +49,8 @@ export function newFile(): string | null {
     language: 'plaintext'
   });
 
+  if (_setActiveTab) _setActiveTab(tabId);
+
   return tabId;
 }
 
@@ -74,7 +76,7 @@ export async function openFile(): Promise<string | null> {
 
 /** Open a specific file by path (called from drag-drop or session restore). */
 export async function openFileByPath(path: string): Promise<string | null> {
-  if (!_openTabFn || !_setActiveTab) return null;
+  if (!_openTabFn) return null;
 
   // Check if already open — normalize path comparison
   const normalizedPath = path.replace(/\\/g, '/').toLowerCase();
@@ -82,7 +84,7 @@ export async function openFileByPath(path: string): Promise<string | null> {
     (t) => t.filePath !== null && t.filePath.replace(/\\/g, '/').toLowerCase() === normalizedPath
   );
   if (existing) {
-    _setActiveTab(existing.id);
+    if (_setActiveTab) _setActiveTab(existing.id);
     return existing.id;
   }
 
@@ -121,12 +123,14 @@ export async function openFileByPath(path: string): Promise<string | null> {
       isDirty: false,
       cursor: { line: 1, column: 1 },
       scrollTop: 0,
-      viewMode: 'editor',
+      viewMode: language === 'markdown' ? 'split' : 'editor',
       encoding,
       hasBOM,
       language,
       isLargeFile
     });
+
+    if (_setActiveTab) _setActiveTab(tabId);
 
     return tabId;
   } catch (err) {

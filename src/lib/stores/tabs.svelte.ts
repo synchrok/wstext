@@ -61,10 +61,8 @@ export function openTab(tabData: Omit<TabState, 'id'>): string {
  * Saves the current tab's view state and restores the target tab's.
  */
 export function switchTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: string): void {
-  if (tabId === tabStore.activeTabId) return;
-
-  // Save current view state
-  if (tabStore.activeTabId) {
+  // Save current view state before switching
+  if (tabStore.activeTabId && tabStore.activeTabId !== tabId) {
     viewStateCache.set(tabStore.activeTabId, editor.saveViewState());
   }
 

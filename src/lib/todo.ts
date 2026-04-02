@@ -1,22 +1,25 @@
 import * as monaco from 'monaco-editor';
 
-/** CSS class applied to unchecked `[ ]` todo items. */
+/** CSS class applied to unchecked `[ ]` todo items — hides brackets, shows checkbox icon. */
 export const TODO_UNCHECKED_CLASS = 'todo-unchecked';
-/** CSS class applied to checked `[x]` todo items. */
+/** CSS class applied to checked `[x]` todo items — hides brackets, shows checked icon. */
 export const TODO_CHECKED_CLASS = 'todo-checked';
+/** CSS class applied to text after a checked item — semi-transparent. */
+export const TODO_CHECKED_TEXT_CLASS = 'todo-checked-text';
 
-/** Regex to find todo patterns: [ ] or [x] */
-const TODO_REGEX = /\[([ x])\]/g;
+/** Regex to find todo patterns: [], [ ], or [x] */
+const TODO_REGEX = /\[([ x]?)\]/g;
 
 /**
  * Manages todo checkbox decorations for a Monaco editor instance.
- * Uses CSS decorations (not Content Widgets) to avoid overlay positioning issues.
  */
 export class TodoManager {
   private editor: monaco.editor.IStandaloneCodeEditor;
   private decorationIds: string[] = [];
   private refreshDebounce: ReturnType<typeof setTimeout> | undefined;
   private disposables: monaco.IDisposable[] = [];
+  /** Track last cursor column to determine movement direction */
+  private lastCursorColumn = 0;
 
   constructor(editor: monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
@@ -36,7 +39,23 @@ export class TodoManager {
       this.handleClick(e);
     });
 
-    this.disposables.push(contentDisposable, mouseDisposable);
+    // Cursor skip: treat checkbox as single atomic unit
+    const cursorDisposable = editor.onDidChangeCursorPosition((e) => {
+      if (e.reason === monaco.editor.CursorChangeReason.Explicit) {
+        this.handleCursorSkip(e);
+      }
+      this.lastCursorColumn = e.position.column;
+    });
+
+    // Ctrl+Enter — toggle checkbox on current line
+    const toggleAction = editor.addAction({
+      id: 'wstext.toggleTodo',
+      label: 'Toggle Checkbox',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+      run: () => this.toggleCurrentLine(),
+    });
+
+    this.disposables.push(contentDisposable, mouseDisposable, cursorDisposable, toggleAction);
   }
 
   /** Apply decorations for all todo patterns in the current model. */
@@ -60,19 +79,32 @@ export class TodoManager {
 
       decorations.push({
         range: new monaco.Range(
-          startPos.lineNumber,
-          startPos.column,
-          endPos.lineNumber,
-          endPos.column
+          startPos.lineNumber, startPos.column,
+          endPos.lineNumber, endPos.column
         ),
         options: {
           inlineClassName: isChecked ? TODO_CHECKED_CLASS : TODO_UNCHECKED_CLASS,
           stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
         },
       });
+
+      if (isChecked) {
+        const lineMaxCol = model.getLineMaxColumn(startPos.lineNumber);
+        if (endPos.column < lineMaxCol) {
+          decorations.push({
+            range: new monaco.Range(
+              startPos.lineNumber, endPos.column,
+              startPos.lineNumber, lineMaxCol
+            ),
+            options: {
+              inlineClassName: TODO_CHECKED_TEXT_CLASS,
+              stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+            },
+          });
+        }
+      }
     }
 
-    // Apply new decorations, replacing old ones
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, decorations);
   }
 
@@ -83,7 +115,6 @@ export class TodoManager {
     const model = this.editor.getModel();
     if (!model) return;
 
-    // Check decorations at click position
     const decorationsAtPos = model.getDecorationsInRange(
       new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column + 1)
     );
@@ -94,20 +125,62 @@ export class TodoManager {
     );
 
     if (!todoDecoration) return;
-
-    const range = todoDecoration.range;
-    const currentText = model.getValueInRange(range);
-    const newText = currentText === '[ ]' ? '[x]' : '[ ]';
-
-    // Use pushEditOperations to make toggle undoable
-    model.pushEditOperations(
-      [],
-      [{ range, text: newText }],
-      () => null
-    );
+    this.toggleRange(todoDecoration.range);
   }
 
-  /** Remove all decorations and event listeners. Call when switching tabs. */
+  /** Toggle checkbox on the current cursor line (Ctrl+Enter). */
+  private toggleCurrentLine(): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+    const pos = this.editor.getPosition();
+    if (!pos) return;
+
+    // Find a checkbox decoration on this line
+    const lineDecos = model.getLineDecorations(pos.lineNumber);
+    const todoDeco = lineDecos?.find(
+      d => d.options.inlineClassName === TODO_UNCHECKED_CLASS ||
+           d.options.inlineClassName === TODO_CHECKED_CLASS
+    );
+
+    if (todoDeco) {
+      this.toggleRange(todoDeco.range);
+    }
+  }
+
+  /** Toggle a checkbox range between checked/unchecked. */
+  private toggleRange(range: monaco.Range): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+    const currentText = model.getValueInRange(range);
+    const newText = (currentText === '[ ]' || currentText === '[]') ? '[x]' : '[ ]';
+    model.pushEditOperations([], [{ range, text: newText }], () => null);
+  }
+
+  /** Skip cursor over checkbox ranges — direction-aware. */
+  private handleCursorSkip(e: monaco.editor.ICursorPositionChangedEvent): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+    const pos = e.position;
+
+    for (const id of this.decorationIds) {
+      const deco = model.getDecorationRange(id);
+      if (!deco) continue;
+      const opts = model.getDecorationOptions(id);
+      if (!opts || (opts.inlineClassName !== TODO_UNCHECKED_CLASS && opts.inlineClassName !== TODO_CHECKED_CLASS)) continue;
+
+      // Cursor strictly inside checkbox range
+      if (pos.lineNumber === deco.startLineNumber &&
+          pos.column > deco.startColumn &&
+          pos.column < deco.endColumn) {
+        // Use previous position to determine direction
+        const movingLeft = pos.column < this.lastCursorColumn;
+        const targetCol = movingLeft ? deco.startColumn : deco.endColumn;
+        this.editor.setPosition({ lineNumber: pos.lineNumber, column: targetCol });
+        return;
+      }
+    }
+  }
+
   dispose(): void {
     if (this.refreshDebounce !== undefined) clearTimeout(this.refreshDebounce);
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
@@ -118,34 +191,39 @@ export class TodoManager {
 
 /**
  * Create and inject the CSS rules for todo decorations.
- * Call this once during app initialization.
  */
 export function injectTodoStyles(): void {
-  if (document.getElementById('wstext-todo-styles')) return; // Already injected
+  if (document.getElementById('wstext-todo-styles')) return;
 
   const style = document.createElement('style');
   style.id = 'wstext-todo-styles';
   style.textContent = `
     .todo-unchecked {
+      color: transparent !important;
+      font-size: 0.01px !important;
+      letter-spacing: -1em;
       cursor: pointer;
     }
     .todo-unchecked::before {
-      content: '☐';
+      content: '☐ ';
       color: #4fc3f7;
-      font-size: 1em;
-      margin-right: 1px;
-    }
-    .todo-checked::before {
-      content: '☑';
-      color: #66bb6a;
-      font-size: 1em;
-      margin-right: 1px;
-      text-decoration: none;
+      font-size: 14px;
+      letter-spacing: normal;
     }
     .todo-checked {
+      color: transparent !important;
+      font-size: 0.01px !important;
+      letter-spacing: -1em;
       cursor: pointer;
-      text-decoration: line-through;
-      opacity: 0.7;
+    }
+    .todo-checked::before {
+      content: '☑ ';
+      color: #66bb6a;
+      font-size: 14px;
+      letter-spacing: normal;
+    }
+    .todo-checked-text {
+      opacity: 0.4;
     }
   `;
   document.head.appendChild(style);

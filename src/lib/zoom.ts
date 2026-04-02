@@ -50,18 +50,18 @@ export function getFontSize(editor: monaco.editor.IStandaloneCodeEditor): number
 }
 
 /**
- * Set up Ctrl+mousewheel zoom on the editor container element.
+ * Set up Ctrl+mousewheel zoom.
+ * Uses window-level capture to intercept BEFORE Tauri WebView handles page zoom.
  * Returns cleanup function to remove the event listener.
  */
 export function setupMouseWheelZoom(
   editor: monaco.editor.IStandaloneCodeEditor,
   onFontSizeChange: (size: number) => void
 ): () => void {
-  const container = editor.getContainerDomNode();
-
   const handleWheel = (e: WheelEvent) => {
     if (!e.ctrlKey) return;
     e.preventDefault();
+    e.stopPropagation();
 
     const newSize = e.deltaY < 0
       ? zoomIn(editor)
@@ -70,10 +70,11 @@ export function setupMouseWheelZoom(
     onFontSizeChange(newSize);
   };
 
-  container.addEventListener('wheel', handleWheel, { passive: false });
+  // Window-level capture phase — intercepts before WebView2 page zoom
+  window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
 
   return () => {
-    container.removeEventListener('wheel', handleWheel);
+    window.removeEventListener('wheel', handleWheel, { capture: true });
   };
 }
 

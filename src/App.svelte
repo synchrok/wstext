@@ -28,7 +28,7 @@
     setupFileDrop,
     registerTabFunctions,
   } from './lib/fileOps.svelte';
-  import { setupMenu, MENU_EVENTS } from './lib/menu';
+  import { MENU_EVENTS } from './lib/menu';
   import { setupKeyboardShortcuts } from './lib/shortcuts';
   import {
     setupMouseWheelZoom,
@@ -44,6 +44,7 @@
   import { TodoManager, injectTodoStyles } from './lib/todo';
 
   // Components
+  import MenuBar from './lib/components/MenuBar.svelte';
   import TabBar from './lib/components/TabBar.svelte';
   import StatusBar from './lib/components/StatusBar.svelte';
   import MarkdownPreview from './lib/components/MarkdownPreview.svelte';
@@ -53,6 +54,7 @@
   let editor: monaco.editor.IStandaloneCodeEditor;
   let todoManager: TodoManager | null = null;
   let zoomCleanup: (() => void) | null = null;
+  let eventAbort: AbortController | null = null;
 
   // UI state
   let showLangPicker = $state(false);
@@ -104,12 +106,25 @@
         },
         fontSize: appSettings.fontSize,
         fontFamily: appSettings.fontFamily,
-        scrollBeyondLastLine: false,
+        scrollBeyondLastLine: true,
         lineNumbers: 'on',
         renderLineHighlight: 'all',
-        wordWrap: appSettings.wordWrap,
+        wordWrap: 'on',
         tabSize: appSettings.tabSize,
         insertSpaces: true,
+        scrollbar: {
+          horizontal: 'hidden',
+          horizontalScrollbarSize: 0,
+        },
+        autoClosingBrackets: 'never',
+      });
+
+      // Force settings — workaround for Monaco sometimes ignoring creation options
+      requestAnimationFrame(() => {
+        editor.updateOptions({
+          wordWrap: 'on',
+          scrollbar: { horizontal: 'hidden', horizontalScrollbarSize: 0 },
+        });
       });
 
       // Register tab functions (editor reference needed for switchTab)
@@ -120,75 +135,96 @@
         updateSetting('fontSize', size);
       });
 
-      // Setup menu
-      await setupMenu();
-
       // Setup keyboard shortcuts
       setupKeyboardShortcuts();
 
       // Setup file drop
       await setupFileDrop();
 
-      // Wire menu events
-      window.addEventListener(MENU_EVENTS.NEW_FILE, () => newFile());
-      window.addEventListener(MENU_EVENTS.OPEN_FILE, () => openFile());
+      // AbortController — ensures ALL event listeners are removed on HMR/unmount
+      const ac = new AbortController();
+      const sig = { signal: ac.signal };
+      eventAbort = ac;
+
+      // Wire menu events (all use AbortController for cleanup)
+      window.addEventListener(MENU_EVENTS.NEW_FILE, () => newFile(), sig);
+      window.addEventListener(MENU_EVENTS.OPEN_FILE, () => openFile(), sig);
       window.addEventListener(MENU_EVENTS.SAVE_FILE, async () => {
         if (activeTab) await handleSave();
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.SAVE_FILE_AS, async () => {
         if (activeTab) await handleSaveAs();
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.CLOSE_TAB, () => {
-        if (activeTabId) closeTab(editor, activeTabId);
-      });
+        if (activeTabId) {
+          closeTab(editor, activeTabId);
+          // Always keep at least one blank tab open
+          if (tabStore.tabs.length === 0) {
+            newFile();
+          }
+        }
+      }, sig);
+      window.addEventListener('wstext:close-all-tabs', () => {
+        // Close all tabs
+        while (tabStore.tabs.length > 0) {
+          closeTab(editor, tabStore.tabs[0].id);
+        }
+        // Create one blank tab
+        newFile();
+      }, sig);
       window.addEventListener(MENU_EVENTS.ZOOM_IN, () => {
         const size = zoomIn(editor);
         updateSetting('fontSize', size);
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.ZOOM_OUT, () => {
         const size = zoomOut(editor);
         updateSetting('fontSize', size);
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.RESET_ZOOM, () => {
         const size = resetZoom(editor);
         updateSetting('fontSize', size);
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.FORMAT_DOCUMENT, () => {
         if (editor) formatDocument(editor);
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.TOGGLE_MINIMAP, () => {
         const newVal = !appSettings.minimap;
         updateSetting('minimap', newVal);
         editor.updateOptions({ minimap: { enabled: newVal } });
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.TOGGLE_WORD_WRAP, () => {
         const newVal = appSettings.wordWrap === 'off' ? 'on' : 'off';
         updateSetting('wordWrap', newVal);
         editor.updateOptions({ wordWrap: newVal });
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.TOGGLE_PREVIEW, () => {
         togglePreview();
-      });
+      }, sig);
       window.addEventListener(MENU_EVENTS.SET_THEME, (e) => {
         const themeName = (e as CustomEvent).detail;
         updateSetting('theme', themeName);
         setTheme(themeName);
-      });
-      window.addEventListener('wstext:next-tab', () => nextTab(editor));
-      window.addEventListener('wstext:prev-tab', () => prevTab(editor));
+      }, sig);
+      window.addEventListener('wstext:set-font', (e) => {
+        const font = (e as CustomEvent).detail;
+        updateSetting('fontFamily', font);
+        editor.updateOptions({ fontFamily: font });
+      }, sig);
+      window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
+      window.addEventListener('wstext:prev-tab', () => prevTab(editor), sig);
       window.addEventListener('wstext:tab-saved-as', (e) => {
         const { tabId, newPath } = (e as CustomEvent).detail;
         const fileName = newPath.split(/[/\\]/).pop() ?? newPath;
         markTabClean(tabId, newPath, fileName);
-      });
+      }, sig);
       window.addEventListener('wstext:notification', (e) => {
         showNotif((e as CustomEvent).detail);
-      });
+      }, sig);
       // Session restore: open tabs from session
       window.addEventListener('wstext:restore-tab', (e) => {
         const tabData = (e as CustomEvent).detail;
         openTab(tabData);
-      });
+      }, sig);
 
       // Monaco cursor position tracking
       editor.onDidChangeCursorPosition((e) => {
@@ -209,17 +245,20 @@
       // Initialize todo manager
       todoManager = new TodoManager(editor);
 
-      // Start session if no tabs open
-      const { initSession } = await import('./lib/session.svelte');
-      await initSession();
+      // Restore session only if no tabs exist (guards against HMR re-mount)
+      if (tabStore.tabs.length === 0) {
+        const { initSession } = await import('./lib/session.svelte');
+        await initSession();
+      }
 
-      // If still no tabs after session restore, create a new file
-      if (tabs.length === 0) {
-        // Show empty state — don't auto-create
+      // Always start with at least one blank tab
+      if (tabStore.tabs.length === 0) {
+        newFile();
       }
     })();
 
     return () => {
+      eventAbort?.abort(); // Remove ALL event listeners at once
       zoomCleanup?.();
       todoManager?.dispose();
       editor?.dispose();
@@ -233,8 +272,9 @@
       theme: appSettings.theme,
       fontSize: appSettings.fontSize,
       fontFamily: appSettings.fontFamily,
-      wordWrap: appSettings.wordWrap,
+      wordWrap: 'on',
       minimap: { enabled: appSettings.minimap },
+      scrollbar: { horizontal: 'hidden', horizontalScrollbarSize: 0 },
     });
     setTheme(appSettings.theme);
   });
@@ -336,22 +376,33 @@
   style:--accent={themeColors.accent}
   style:background-color={themeColors.bgPrimary}
 >
-  <!-- Tab bar -->
-  {#if tabs.length > 0}
-    <TabBar
-      {tabs}
-      {activeTabId}
-      bgColor={themeColors.tabBarBg}
-      tabActiveBg={themeColors.tabActive}
-      tabInactiveBg={themeColors.tabInactive}
-      tabActiveFg={themeColors.tabActiveFg}
-      tabInactiveFg={themeColors.tabInactiveFg}
-      borderColor={themeColors.border}
-      onTabClick={(id) => switchTab(editor, id)}
-      onTabClose={(id) => closeTab(editor, id)}
-      onTabMiddleClick={(id) => closeTab(editor, id)}
-    />
-  {/if}
+  <!-- Tab bar (always visible — acts as drag region + window controls) -->
+  <MenuBar
+    bgColor={themeColors.bgSecondary}
+    fgColor={themeColors.fgPrimary}
+    fgMuted={themeColors.fgMuted}
+    borderColor={themeColors.border}
+    accentColor={themeColors.accent}
+  />
+  <TabBar
+    {tabs}
+    {activeTabId}
+    bgColor={themeColors.tabBarBg}
+    tabActiveBg={themeColors.tabActive}
+    tabInactiveBg={themeColors.tabInactive}
+    tabActiveFg={themeColors.tabActiveFg}
+    tabInactiveFg={themeColors.tabInactiveFg}
+    borderColor={themeColors.border}
+    onTabClick={(id) => switchTab(editor, id)}
+    onTabClose={(id) => {
+      closeTab(editor, id);
+      if (tabStore.tabs.length === 0) newFile();
+    }}
+    onTabMiddleClick={(id) => {
+      closeTab(editor, id);
+      if (tabStore.tabs.length === 0) newFile();
+    }}
+  />
 
   <!-- Main content area -->
   <div class="editor-area" class:split-view={isSplit && showPreview}>
@@ -375,16 +426,7 @@
       </div>
     {/if}
 
-    <!-- Empty state -->
-    {#if tabs.length === 0}
-      <div class="empty-state" style:color={themeColors.fgMuted}>
-        <div class="empty-icon">📄</div>
-        <p class="empty-title" style:color={themeColors.fgPrimary}>wstext</p>
-        <p class="empty-hint">
-          Open a file <kbd>Ctrl+O</kbd> or create new <kbd>Ctrl+N</kbd>
-        </p>
-      </div>
-    {/if}
+
   </div>
 
   <!-- Status bar -->
@@ -489,49 +531,6 @@
     flex: 1;
     overflow: hidden;
     min-width: 0;
-  }
-
-  /* Empty state */
-  .empty-state {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    user-select: none;
-    pointer-events: none;
-  }
-
-  .empty-icon {
-    font-size: 48px;
-    opacity: 0.3;
-  }
-
-  .empty-title {
-    font-size: 24px;
-    font-weight: 300;
-    letter-spacing: 2px;
-    opacity: 0.7;
-    margin: 0;
-  }
-
-  .empty-hint {
-    font-size: 13px;
-    opacity: 0.5;
-    margin: 0;
-  }
-
-  .empty-hint kbd {
-    display: inline-block;
-    padding: 1px 6px;
-    border: 1px solid currentColor;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 11px;
-    opacity: 0.7;
-    margin: 0 2px;
   }
 
   /* Notification toast */
