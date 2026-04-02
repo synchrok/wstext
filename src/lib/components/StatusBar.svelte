@@ -1,18 +1,23 @@
 <script lang="ts">
   import type { Encoding } from '../types';
 
+  import type { ViewMode } from '../types';
+
   interface Props {
     line?: number;
     column?: number;
     encoding?: Encoding;
     tabSize?: 2 | 4;
     language?: string;
+    viewMode?: ViewMode;
     bgColor?: string;
     fgColor?: string;
     fgMuted?: string;
+    accentColor?: string;
     onEncodingClick?: () => void;
     onTabSizeClick?: () => void;
     onLanguageClick?: () => void;
+    onPreviewToggle?: () => void;
   }
 
   let {
@@ -21,13 +26,19 @@
     encoding = 'utf-8',
     tabSize = 4,
     language = 'Plain Text',
+    viewMode = 'editor' as ViewMode,
     bgColor = '#1e1f1c',
     fgColor = '#F8F8F2',
     fgMuted = '#75715E',
+    accentColor = '#A6E22E',
     onEncodingClick = undefined,
     onTabSizeClick = undefined,
     onLanguageClick = undefined,
+    onPreviewToggle = undefined,
   }: Props = $props();
+
+  let isMarkdown = $derived(language.toLowerCase() === 'markdown');
+  let previewActive = $derived(viewMode === 'split');
 
   /** Display name for the language (capitalize first letter) */
   let languageDisplay = $derived(
@@ -76,8 +87,20 @@
     </button>
   </div>
 
-  <!-- Right: Language -->
+  <!-- Right: Preview toggle + Language -->
   <div class="status-section status-right">
+    {#if isMarkdown}
+      <button
+        class="status-item status-button preview-toggle"
+        style:color={previewActive ? accentColor : fgMuted}
+        onclick={onPreviewToggle}
+        title="Toggle Markdown Preview"
+        type="button"
+      >
+        {previewActive ? '◉ Preview' : '○ Preview'}
+      </button>
+      <span class="status-separator">·</span>
+    {/if}
     <button
       class="status-item status-button"
       style:color={fgMuted}

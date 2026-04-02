@@ -73,6 +73,8 @@ export interface AppSettings {
   wordWrap: 'off' | 'on' | 'wordWrapColumn' | 'bounded';
   /** Whether the minimap is visible. */
   minimap: boolean;
+  /** Whether todo checkboxes (☐/☑) are enabled. */
+  checkboxEnabled: boolean;
 }
 
 /**
@@ -102,4 +104,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   tabSize: 4,
   wordWrap: 'on',
   minimap: true,
+  checkboxEnabled: true,
 };

@@ -48,6 +48,7 @@
   import TabBar from './lib/components/TabBar.svelte';
   import StatusBar from './lib/components/StatusBar.svelte';
   import MarkdownPreview from './lib/components/MarkdownPreview.svelte';
+  import FontDialog from './lib/components/FontDialog.svelte';
 
   // Editor state
   let editorContainer: HTMLDivElement;
@@ -60,6 +61,7 @@
   let showLangPicker = $state(false);
   let showEncPicker = $state(false);
   let showSpacesPicker = $state(false);
+  let showFontDialog = $state(false);
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -90,6 +92,8 @@
     (async () => {
       // Load settings first
       await loadSettings();
+      const { loadRecentFiles } = await import('./lib/stores/settings.svelte');
+      await loadRecentFiles();
 
       // Register themes BEFORE creating editor
       registerAllThemes();
@@ -149,6 +153,11 @@
       // Wire menu events (all use AbortController for cleanup)
       window.addEventListener(MENU_EVENTS.NEW_FILE, () => newFile(), sig);
       window.addEventListener(MENU_EVENTS.OPEN_FILE, () => openFile(), sig);
+      window.addEventListener('wstext:open-path', async (e) => {
+        const path = (e as CustomEvent).detail;
+        const { openFileByPath } = await import('./lib/fileOps.svelte');
+        await openFileByPath(path);
+      }, sig);
       window.addEventListener(MENU_EVENTS.SAVE_FILE, async () => {
         if (activeTab) await handleSave();
       }, sig);
@@ -210,6 +219,20 @@
         updateSetting('fontFamily', font);
         editor.updateOptions({ fontFamily: font });
       }, sig);
+      window.addEventListener('wstext:open-font-settings', () => {
+        showFontDialog = true;
+      }, sig);
+      window.addEventListener('wstext:toggle-checkbox', () => {
+        const newVal = !appSettings.checkboxEnabled;
+        updateSetting('checkboxEnabled', newVal);
+        if (newVal) {
+          todoManager?.refreshDecorations();
+        } else {
+          // Clear all todo decorations
+          todoManager?.dispose();
+          todoManager = new TodoManager(editor);
+        }
+      }, sig);
       window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
       window.addEventListener('wstext:prev-tab', () => prevTab(editor), sig);
       window.addEventListener('wstext:tab-saved-as', (e) => {
@@ -255,6 +278,16 @@
       if (tabStore.tabs.length === 0) {
         newFile();
       }
+
+      // After session restore: switch editor to the active tab's model + refresh decorations
+      if (tabStore.activeTabId) {
+        // Force model switch (openTab sets activeTabId but doesn't switch editor model)
+        const savedActiveId = tabStore.activeTabId;
+        tabStore.activeTabId = null; // Reset so switchTab doesn't skip
+        switchTab(editor, savedActiveId);
+        // Refresh todo decorations on the now-loaded model
+        todoManager?.refreshDecorations();
+      }
     })();
 
     return () => {
@@ -286,7 +319,7 @@
 
     const tab = tabs.find(t => t.id === tabId);
     if (tab && (tab.language === 'markdown' || tab.language === 'plaintext')) {
-      todoManager.refresh();
+      todoManager.refreshDecorations();
     }
   });
 
@@ -308,20 +341,11 @@
     const tab = tabs.find(t => t.id === activeTabId);
     if (!tab) return;
 
-    if (tab.viewMode === 'editor') {
-      // Switch to toggle preview
-      import('./lib/stores/tabs.svelte').then(({ updateTabViewMode }) => {
-        updateTabViewMode(activeTabId!, 'preview');
-      });
-    } else if (tab.viewMode === 'preview') {
-      import('./lib/stores/tabs.svelte').then(({ updateTabViewMode }) => {
-        updateTabViewMode(activeTabId!, 'split');
-      });
-    } else {
-      import('./lib/stores/tabs.svelte').then(({ updateTabViewMode }) => {
-        updateTabViewMode(activeTabId!, 'editor');
-      });
-    }
+    // Simple toggle: editor ↔ split (split keeps editor+minimap+preview all visible)
+    const newMode = tab.viewMode === 'editor' ? 'split' : 'editor';
+    import('./lib/stores/tabs.svelte').then(({ updateTabViewMode }) => {
+      updateTabViewMode(activeTabId!, newMode);
+    });
   }
 
   function showNotif(detail: { message: string; type: string }): void {
@@ -436,12 +460,15 @@
     encoding={activeTab?.encoding ?? 'utf-8'}
     tabSize={appSettings.tabSize}
     language={activeTab ? getLanguageDisplayName(activeTab.language) : 'Plain Text'}
+    viewMode={activeTab?.viewMode ?? 'editor'}
     bgColor={themeColors.statusBarBg}
     fgColor={themeColors.fgPrimary}
     fgMuted={themeColors.fgMuted}
+    accentColor={themeColors.accent}
     onEncodingClick={() => (showEncPicker = !showEncPicker)}
     onTabSizeClick={() => (showSpacesPicker = !showSpacesPicker)}
     onLanguageClick={() => (showLangPicker = !showLangPicker)}
+    onPreviewToggle={() => togglePreview()}
   />
 
   <!-- Notification toast -->
@@ -484,6 +511,24 @@
         </button>
       {/each}
     </div>
+  {/if}
+
+  {#if showFontDialog}
+    <FontDialog
+      visible={showFontDialog}
+      currentFontFamily={appSettings.fontFamily}
+      bgColor={themeColors.bgSecondary}
+      fgColor={themeColors.fgPrimary}
+      fgMuted={themeColors.fgMuted}
+      borderColor={themeColors.border}
+      accentColor={themeColors.accent}
+      onSave={(font) => {
+        updateSetting('fontFamily', font);
+        editor.updateOptions({ fontFamily: font });
+        showFontDialog = false;
+      }}
+      onClose={() => showFontDialog = false}
+    />
   {/if}
 </div>
 

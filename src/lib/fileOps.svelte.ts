@@ -2,9 +2,11 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { readFile } from '@tauri-apps/plugin-fs';
 import type { TabState } from './types';
+import { displayToFile, fileToDisplay } from './todo';
 import { readFileWithEncoding, writeFileWithEncoding } from './utils/encoding';
 import { isBinaryFile } from './utils/binaryDetection';
 import { detectLanguage } from './utils/fileLanguage';
+import { addRecentFile } from './stores/settings.svelte';
 import { tabStore } from './stores/tabs.svelte';
 
 /** Emit a notification toast — simple wrapper */
@@ -119,7 +121,7 @@ export async function openFileByPath(path: string): Promise<string | null> {
     const tabId = _openTabFn({
       filePath: path,
       title: fileName,
-      content,
+      content: fileToDisplay(content),
       isDirty: false,
       cursor: { line: 1, column: 1 },
       scrollTop: 0,
@@ -131,6 +133,7 @@ export async function openFileByPath(path: string): Promise<string | null> {
     });
 
     if (_setActiveTab) _setActiveTab(tabId);
+    void addRecentFile(path);
 
     return tabId;
   } catch (err) {
@@ -146,7 +149,7 @@ export async function saveFile(tab: TabState): Promise<boolean> {
   }
 
   try {
-    await writeFileWithEncoding(tab.filePath, tab.content, tab.encoding, tab.hasBOM);
+    await writeFileWithEncoding(tab.filePath, displayToFile(tab.content), tab.encoding, tab.hasBOM);
     return true;
   } catch (err) {
     showNotification(`저장 실패: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -169,7 +172,7 @@ export async function saveFileAs(tab: TabState): Promise<boolean> {
   if (path === null) return false;
 
   try {
-    await writeFileWithEncoding(path, tab.content, tab.encoding, tab.hasBOM);
+    await writeFileWithEncoding(path, displayToFile(tab.content), tab.encoding, tab.hasBOM);
 
     // Notify tab store to update path/title and clear dirty state
     window.dispatchEvent(

@@ -54,6 +54,13 @@ export function setupKeyboardShortcuts(): void {
       return;
     }
 
+    // Ctrl+Shift+M — toggle markdown preview
+    if (ctrl && e.key === 'M' && e.shiftKey) {
+      e.preventDefault();
+      emit(MENU_EVENTS.TOGGLE_PREVIEW);
+      return;
+    }
+
     // Ctrl+Tab — next tab
     if (ctrl && e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();

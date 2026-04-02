@@ -12,6 +12,8 @@ const store = new LazyStore('settings.json');
  * NOTE: This file uses .svelte.ts extension — required for Svelte 5 runes in modules.
  */
 export const appSettings = $state<AppSettings>({ ...DEFAULT_SETTINGS });
+/** Recent files list (max 10, most recent first) */
+export const recentFiles = $state<string[]>([]);
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -76,4 +78,28 @@ export function updateTheme(theme: ThemeName): void {
 export function updateFontSize(size: number): void {
   const clamped = Math.max(8, Math.min(40, size)) as AppSettings['fontSize'];
   updateSetting('fontSize', clamped);
+}
+
+export async function loadRecentFiles(): Promise<void> {
+  try {
+    const saved = await store.get<string[]>('recentFiles');
+    if (saved && Array.isArray(saved)) {
+      recentFiles.length = 0;
+      recentFiles.push(...saved);
+    }
+  } catch {}
+}
+
+export async function addRecentFile(filePath: string): Promise<void> {
+  // Remove if already exists, add to front
+  const idx = recentFiles.indexOf(filePath);
+  if (idx >= 0) recentFiles.splice(idx, 1);
+  recentFiles.unshift(filePath);
+  // Keep max 10
+  while (recentFiles.length > 10) recentFiles.pop();
+  // Save
+  try {
+    await store.set('recentFiles', [...recentFiles]);
+    await store.save();
+  } catch {}
 }

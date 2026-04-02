@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { MENU_EVENTS } from '../menu';
-  import { MONOSPACE_FONTS } from '../zoom';
+  import { recentFiles } from '../stores/settings.svelte';
 
   interface Props {
     bgColor?: string;
@@ -96,6 +96,16 @@
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.OPEN_FILE)}>
             <span>Open...</span><span class="shortcut" style:color={fgMuted}>Ctrl+O</span>
           </button>
+          {#if recentFiles.length > 0}
+            <div class="menu-separator"></div>
+            <div class="menu-label">Recent Files</div>
+            {#each recentFiles.slice(0, 5) as filePath}
+              <button class="menu-item" onclick={() => { emit('wstext:open-path', filePath); }}>
+                {filePath.split(/[/\\]/).pop()}
+                <span class="shortcut">{filePath}</span>
+              </button>
+            {/each}
+          {/if}
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.SAVE_FILE)}>
             <span>Save</span><span class="shortcut" style:color={fgMuted}>Ctrl+S</span>
           </button>
@@ -165,16 +175,16 @@
             <span>Reset Zoom</span><span class="shortcut" style:color={fgMuted}>Ctrl+0</span>
           </button>
           <div class="separator" style:background-color={borderColor}></div>
+          <button class="menu-item" onclick={() => emit('wstext:toggle-checkbox')}>
+            <span>Toggle Checkboxes</span>
+          </button>
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.TOGGLE_PREVIEW)}>
             <span>Toggle Preview</span><span class="shortcut" style:color={fgMuted}>Ctrl+Shift+M</span>
           </button>
           <div class="menu-separator"></div>
-          <div class="menu-label">Font</div>
-          {#each MONOSPACE_FONTS as font}
-            <button class="menu-item" onclick={() => emit('wstext:set-font', font)}>
-              <span style="font-family: {font}">{font.replace(/'/g, '')}</span>
-            </button>
-          {/each}
+          <button class="menu-item" onclick={() => emit('wstext:open-font-settings')}>
+            <span>Font Settings...</span>
+          </button>
         </div>
       {/if}
     </div>
@@ -327,10 +337,11 @@
   }
 
   .menu-label {
-    padding: 4px 24px;
     font-size: 11px;
-    opacity: 0.5;
-    cursor: default;
+    padding: 4px 16px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   .drag-region {

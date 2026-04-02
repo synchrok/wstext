@@ -5,6 +5,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { SessionState, TabState } from './types';
 import { SESSION_VERSION } from './types';
 import { tabStore } from './stores/tabs.svelte';
+import { displayToFile, fileToDisplay } from './todo';
 import { atomicWriteText } from './utils/atomicWrite';
 
 const SENTINEL_FILE = '.wstext-running';
@@ -118,16 +119,14 @@ async function restoreTab(tab: TabState): Promise<void> {
     let content = tab.content;
 
     if (tab.filePath) {
-      // File-backed tab: re-read from disk
+      // File-backed tab: re-read from disk (use cached content as fallback)
       try {
         const { readFileWithEncoding } = await import('./utils/encoding');
         const result = await readFileWithEncoding(tab.filePath);
         content = result.content;
       } catch {
-        // File deleted/moved — still restore with cached content or mark as missing
-        if (!content) {
-          content = `// File not found: ${tab.filePath}\n// This file may have been moved or deleted.`;
-        }
+        // File read failed — silently use whatever content we have from session cache
+        // (content may be empty string for new/empty files — that's fine)
       }
     } else {
       // Untitled tab: try backup file first
@@ -141,6 +140,8 @@ async function restoreTab(tab: TabState): Promise<void> {
         // Backup not found — use session content
       }
     }
+
+    content = fileToDisplay(content);
 
     // Open tab via global event (tabs store handles the actual tab creation)
     window.dispatchEvent(
@@ -162,8 +163,8 @@ function buildSessionState(): SessionState {
     activeTabId: tabStore.activeTabId,
     tabs: tabStore.tabs.map((t) => ({
       ...t,
-      // For file-backed tabs, don't store content (re-read from disk on restore)
-      content: t.filePath ? '' : t.content,
+      // Always store full content — Tauri FS scope may block re-read on restore
+      content: displayToFile(t.content),
     })),
     savedAt: Date.now(),
   };
