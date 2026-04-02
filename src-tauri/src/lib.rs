@@ -1,4 +1,3 @@
-// transparent + borderless + shadowless
 use tauri::Manager;
 use tauri_plugin_window_state::StateFlags;
 

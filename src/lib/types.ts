@@ -98,8 +98,8 @@ export const SESSION_VERSION = 1;
 
 /** Default app settings used when no settings.json exists. */
 export const DEFAULT_SETTINGS: AppSettings = {
-  theme: 'monokai',
-  fontFamily: "Consolas, 'Courier New', monospace",
+  theme: 'one-dark',
+  fontFamily: "'Pretendard', Consolas, 'Courier New', monospace",
   fontSize: 14,
   tabSize: 4,
   wordWrap: 'on',

@@ -4,6 +4,7 @@
   import { recentFiles } from '../stores/settings.svelte';
 
   interface Props {
+    activeFileName?: string;
     bgColor?: string;
     fgColor?: string;
     fgMuted?: string;
@@ -12,6 +13,7 @@
   }
 
   let {
+    activeFileName = '',
     bgColor = '#1e1f1c',
     fgColor = '#F8F8F2',
     fgMuted = '#75715E',
@@ -75,6 +77,15 @@
 {#if activeMenu !== null}
   <div class="menu-overlay" onclick={closeMenu}></div>
 {/if}
+
+<!-- Title bar -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="title-bar" style:background-color={bgColor} style:color={fgMuted} data-tauri-drag-region ondblclick={toggleMaximize}>
+  <span class="title-text" data-tauri-drag-region>
+    <img class="title-icon" src="/wstext-icon.png" alt="" width="14" height="14" />
+    WSText{#if activeFileName}<span style:color={fgMuted} style:opacity="0.5"> — </span><span style:color={fgColor} style:opacity="0.7">{activeFileName}</span>{/if}
+  </span>
+</div>
 
 <div class="menu-bar" style:background-color={bgColor} style:color={fgColor}>
   <div class="menus">
@@ -207,6 +218,28 @@
 </div>
 
 <style>
+  .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    user-select: none;
+  }
+
+  .title-text {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0.8;
+  }
+
+  .title-icon {
+    flex-shrink: 0;
+  }
+
   .menu-bar {
     display: flex;
     flex-direction: row;
