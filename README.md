@@ -13,6 +13,10 @@
   Inspired by Sublime Text — only the essentials, nothing more.
 </p>
 
+<p align="center">
+  <a href="README.ko.md">한국어</a>
+</p>
+
 ---
 
 ## Features
