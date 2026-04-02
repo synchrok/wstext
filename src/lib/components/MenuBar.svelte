@@ -96,16 +96,6 @@
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.OPEN_FILE)}>
             <span>Open...</span><span class="shortcut" style:color={fgMuted}>Ctrl+O</span>
           </button>
-          {#if recentFiles.length > 0}
-            <div class="menu-separator"></div>
-            <div class="menu-label">Recent Files</div>
-            {#each recentFiles.slice(0, 5) as filePath}
-              <button class="menu-item" onclick={() => { emit('wstext:open-path', filePath); }}>
-                {filePath.split(/[/\\]/).pop()}
-                <span class="shortcut">{filePath}</span>
-              </button>
-            {/each}
-          {/if}
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.SAVE_FILE)}>
             <span>Save</span><span class="shortcut" style:color={fgMuted}>Ctrl+S</span>
           </button>
@@ -118,6 +108,20 @@
           </button>
           <button class="menu-item" onclick={() => emit('wstext:close-all-tabs')}>
             <span>Close All Tabs</span><span class="shortcut" style:color={fgMuted}>Ctrl+Shift+W</span>
+          </button>
+          {#if recentFiles.length > 0}
+            <div class="separator" style:background-color={borderColor}></div>
+            <div class="menu-label">Recent Files</div>
+            {#each recentFiles.slice(0, 5) as filePath}
+              <button class="menu-item" onclick={() => { emit('wstext:open-path', filePath); }}>
+                <span>{filePath.split(/[/\\]/).pop()}</span>
+                <span class="shortcut" style:color={fgMuted}>{filePath}</span>
+              </button>
+            {/each}
+          {/if}
+          <div class="separator" style:background-color={borderColor}></div>
+          <button class="menu-item" onclick={() => emit('wstext:open-settings')}>
+            <span>Settings...</span>
           </button>
           <div class="separator" style:background-color={borderColor}></div>
           <button class="menu-item" onclick={quit}>
@@ -180,41 +184,6 @@
           </button>
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.TOGGLE_PREVIEW)}>
             <span>Toggle Preview</span><span class="shortcut" style:color={fgMuted}>Ctrl+Shift+M</span>
-          </button>
-          <div class="menu-separator"></div>
-          <button class="menu-item" onclick={() => emit('wstext:open-font-settings')}>
-            <span>Font Settings...</span>
-          </button>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Theme Menu -->
-    <div class="menu-container">
-      <button 
-        class="menu-button" 
-        class:active={activeMenu === 'theme'}
-        onclick={() => toggleMenu('theme')}
-        onmouseenter={() => handleMenuHover('theme')}
-      >
-        Theme
-      </button>
-      {#if activeMenu === 'theme'}
-        <div class="dropdown" style:background-color={bgColor} style:border-color={borderColor}>
-          <button class="menu-item" onclick={() => emit(MENU_EVENTS.SET_THEME, 'monokai')}>
-            <span>Monokai</span>
-          </button>
-          <button class="menu-item" onclick={() => emit(MENU_EVENTS.SET_THEME, 'dracula')}>
-            <span>Dracula</span>
-          </button>
-          <button class="menu-item" onclick={() => emit(MENU_EVENTS.SET_THEME, 'one-dark')}>
-            <span>One Dark</span>
-          </button>
-          <button class="menu-item" onclick={() => emit(MENU_EVENTS.SET_THEME, 'solarized-dark')}>
-            <span>Solarized Dark</span>
-          </button>
-          <button class="menu-item" onclick={() => emit(MENU_EVENTS.SET_THEME, 'solarized-light')}>
-            <span>Solarized Light</span>
           </button>
         </div>
       {/if}

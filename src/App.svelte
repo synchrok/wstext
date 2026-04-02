@@ -48,7 +48,7 @@
   import TabBar from './lib/components/TabBar.svelte';
   import StatusBar from './lib/components/StatusBar.svelte';
   import MarkdownPreview from './lib/components/MarkdownPreview.svelte';
-  import FontDialog from './lib/components/FontDialog.svelte';
+  import SettingsDialog from './lib/components/SettingsDialog.svelte';
 
   // Editor state
   let editorContainer: HTMLDivElement;
@@ -61,7 +61,7 @@
   let showLangPicker = $state(false);
   let showEncPicker = $state(false);
   let showSpacesPicker = $state(false);
-  let showFontDialog = $state(false);
+  let showSettings = $state(false);
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -209,29 +209,8 @@
       window.addEventListener(MENU_EVENTS.TOGGLE_PREVIEW, () => {
         togglePreview();
       }, sig);
-      window.addEventListener(MENU_EVENTS.SET_THEME, (e) => {
-        const themeName = (e as CustomEvent).detail;
-        updateSetting('theme', themeName);
-        setTheme(themeName);
-      }, sig);
-      window.addEventListener('wstext:set-font', (e) => {
-        const font = (e as CustomEvent).detail;
-        updateSetting('fontFamily', font);
-        editor.updateOptions({ fontFamily: font });
-      }, sig);
-      window.addEventListener('wstext:open-font-settings', () => {
-        showFontDialog = true;
-      }, sig);
-      window.addEventListener('wstext:toggle-checkbox', () => {
-        const newVal = !appSettings.checkboxEnabled;
-        updateSetting('checkboxEnabled', newVal);
-        if (newVal) {
-          todoManager?.refreshDecorations();
-        } else {
-          // Clear all todo decorations
-          todoManager?.dispose();
-          todoManager = new TodoManager(editor);
-        }
+      window.addEventListener('wstext:open-settings', () => {
+        showSettings = true;
       }, sig);
       window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
       window.addEventListener('wstext:prev-tab', () => prevTab(editor), sig);
@@ -324,15 +303,22 @@
   });
 
   async function handleSave(): Promise<void> {
-    if (!activeTab) return;
+    if (!activeTab || !activeTabId) return;
+    // Sync latest editor content to tab before saving
+    if (editor) {
+      updateTabContent(activeTabId, editor.getValue());
+    }
     const success = await saveFile(activeTab);
-    if (success && activeTabId) {
+    if (success) {
       markTabClean(activeTabId);
     }
   }
 
   async function handleSaveAs(): Promise<void> {
-    if (!activeTab) return;
+    if (!activeTab || !activeTabId) return;
+    if (editor) {
+      updateTabContent(activeTabId, editor.getValue());
+    }
     await saveFileAs(activeTab);
   }
 
@@ -513,21 +499,52 @@
     </div>
   {/if}
 
-  {#if showFontDialog}
-    <FontDialog
-      visible={showFontDialog}
-      currentFontFamily={appSettings.fontFamily}
+  {#if showSettings}
+    <SettingsDialog
+      visible={showSettings}
+      settings={{
+        theme: appSettings.theme,
+        fontFamily: appSettings.fontFamily,
+        fontSize: appSettings.fontSize,
+        tabSize: appSettings.tabSize,
+        minimap: appSettings.minimap,
+        checkboxEnabled: appSettings.checkboxEnabled,
+      }}
       bgColor={themeColors.bgSecondary}
       fgColor={themeColors.fgPrimary}
       fgMuted={themeColors.fgMuted}
       borderColor={themeColors.border}
       accentColor={themeColors.accent}
-      onSave={(font) => {
-        updateSetting('fontFamily', font);
-        editor.updateOptions({ fontFamily: font });
-        showFontDialog = false;
+      onSave={(changes) => {
+        for (const [key, value] of Object.entries(changes)) {
+          updateSetting(key as any, value);
+        }
+        if (changes.theme) {
+          setTheme(changes.theme);
+        }
+        if (changes.fontFamily || changes.fontSize) {
+          editor.updateOptions({
+            fontFamily: changes.fontFamily ?? appSettings.fontFamily,
+            fontSize: changes.fontSize ?? appSettings.fontSize,
+          });
+        }
+        if (changes.minimap !== undefined) {
+          editor.updateOptions({ minimap: { enabled: changes.minimap } });
+        }
+        if (changes.tabSize) {
+          editor.updateOptions({ tabSize: changes.tabSize });
+        }
+        if (changes.checkboxEnabled !== undefined) {
+          if (changes.checkboxEnabled) {
+            todoManager?.refreshDecorations();
+          } else {
+            todoManager?.dispose();
+            todoManager = new TodoManager(editor);
+          }
+        }
+        showSettings = false;
       }}
-      onClose={() => showFontDialog = false}
+      onClose={() => showSettings = false}
     />
   {/if}
 </div>
