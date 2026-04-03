@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { MENU_EVENTS } from '../menu';
   import { recentFiles } from '../stores/settings.svelte';
@@ -22,6 +23,18 @@
   }: Props = $props();
 
   let activeMenu = $state<string | null>(null);
+  let windowFocused = $state(true);
+
+  onMount(() => {
+    const onFocus = () => { windowFocused = true; };
+    const onBlur = () => { windowFocused = false; };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  });
 
   function toggleMenu(menu: string) {
     if (activeMenu === menu) {
@@ -78,13 +91,24 @@
   <div class="menu-overlay" onclick={closeMenu}></div>
 {/if}
 
-<!-- Title bar -->
+<!-- Title bar with window controls -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="title-bar" style:background-color={bgColor} style:color={fgMuted} data-tauri-drag-region ondblclick={toggleMaximize}>
-  <span class="title-text" data-tauri-drag-region>
-    <img class="title-icon" src="/wstext-icon.png" alt="" width="14" height="14" />
-    WSText{#if activeFileName}<span style:color={fgMuted} style:opacity="0.5"> — </span><span style:color={fgColor} style:opacity="0.7">{activeFileName}</span>{/if}
+<div class="title-bar" style:background-color={bgColor} data-tauri-drag-region ondblclick={toggleMaximize}>
+  <span class="title-text" style:opacity={windowFocused ? 0.9 : 0.55} data-tauri-drag-region>
+    <img class="title-icon" src="/wstext-icon.png" alt="" width="14" height="14" style:opacity={windowFocused ? 1 : 0.5} />
+    <span style:color={windowFocused ? fgColor : fgMuted}>WSText</span>{#if activeFileName}<span style:color={fgMuted} style:opacity="0.5"> — </span><span style:color={windowFocused ? fgColor : fgMuted} style:opacity="0.7">{activeFileName}</span>{/if}
   </span>
+  <div class="title-window-controls">
+    <button class="win-btn" onclick={minimizeWindow} aria-label="Minimize" title="Minimize" style:color={fgMuted}>
+      <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+    <button class="win-btn" onclick={toggleMaximize} aria-label="Maximize" title="Maximize" style:color={fgMuted}>
+      <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+    <button class="win-btn win-close" onclick={closeWindow} aria-label="Close" title="Close" style:color={fgMuted}>
+      <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" stroke-width="1"/><line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
+  </div>
 </div>
 
 <div class="menu-bar" style:background-color={bgColor} style:color={fgColor}>
@@ -124,9 +148,9 @@
             <div class="separator" style:background-color={borderColor}></div>
             <div class="menu-label">Recent Files</div>
             {#each recentFiles.slice(0, 5) as filePath}
-              <button class="menu-item" onclick={() => { emit('wstext:open-path', filePath); }}>
-                <span>{filePath.split(/[/\\]/).pop()}</span>
-                <span class="shortcut" style:color={fgMuted}>{filePath}</span>
+              <button class="menu-item recent-item" onclick={() => { emit('wstext:open-path', filePath); }}>
+                <span class="recent-name">{filePath.split(/[/\\]/).pop()}</span>
+                <span class="recent-path" style:color={fgMuted}>{filePath.split(/[/\\]/).slice(0, -1).join('\\')}</span>
               </button>
             {/each}
           {/if}
@@ -203,37 +227,33 @@
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="drag-region" data-tauri-drag-region ondblclick={toggleMaximize}></div>
-
-  <div class="window-controls">
-    <button class="win-btn" onclick={minimizeWindow} aria-label="Minimize" title="Minimize">
-      <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1"/></svg>
-    </button>
-    <button class="win-btn" onclick={toggleMaximize} aria-label="Maximize" title="Maximize">
-      <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
-    </button>
-    <button class="win-btn win-close" onclick={closeWindow} aria-label="Close" title="Close">
-      <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" stroke-width="1"/><line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" stroke-width="1"/></svg>
-    </button>
-  </div>
 </div>
 
 <style>
   .title-bar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    height: 24px;
+    height: 28px;
     flex-shrink: 0;
     font-size: 12px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     user-select: none;
+    padding-left: 10px;
   }
 
   .title-text {
     display: flex;
     align-items: center;
     gap: 5px;
-    opacity: 0.8;
+    flex: 1;
+    transition: opacity 0.15s ease;
+  }
+
+  .title-window-controls {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: 100%;
   }
 
   .title-icon {
@@ -323,6 +343,26 @@
   .shortcut {
     font-size: 12px;
     margin-left: 16px;
+  }
+
+  .recent-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1px;
+    padding: 4px 24px !important;
+  }
+
+  .recent-name {
+    font-size: 13px;
+  }
+
+  .recent-path {
+    font-size: 10px;
+    opacity: 0.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
   }
 
   .separator {

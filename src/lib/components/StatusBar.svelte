@@ -38,7 +38,11 @@
   }: Props = $props();
 
   let isMarkdown = $derived(language.toLowerCase() === 'markdown');
-  let previewActive = $derived(viewMode === 'split');
+  let previewLabel = $derived(
+    viewMode === 'split' ? '◐ Split' :
+    viewMode === 'preview' ? '◉ Preview' :
+    '○ Preview'
+  );
 
   /** Display name for the language (capitalize first letter) */
   let languageDisplay = $derived(
@@ -92,12 +96,12 @@
     {#if isMarkdown}
       <button
         class="status-item status-button preview-toggle"
-        style:color={previewActive ? accentColor : fgMuted}
+        style:color={viewMode !== 'editor' ? accentColor : fgMuted}
         onclick={onPreviewToggle}
-        title="Toggle Markdown Preview"
+        title="Toggle Markdown Preview (Editor → Split → Preview)"
         type="button"
       >
-        {previewActive ? '◉ Preview' : '○ Preview'}
+        {previewLabel}
       </button>
       <span class="status-separator">·</span>
     {/if}

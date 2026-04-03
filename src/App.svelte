@@ -64,6 +64,7 @@
   let showSettings = $state(false);
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
+  let splitPercent = $state(50);
 
   // Local reactive aliases for tabStore
   let tabs = $derived(tabStore.tabs);
@@ -327,11 +328,32 @@
     const tab = tabs.find(t => t.id === activeTabId);
     if (!tab) return;
 
-    // Simple toggle: editor ↔ split (split keeps editor+minimap+preview all visible)
-    const newMode = tab.viewMode === 'editor' ? 'split' : 'editor';
+    // 3-stage toggle: editor → split → preview → editor
+    const cycle = { editor: 'split', split: 'preview', preview: 'editor' } as const;
+    const newMode = cycle[tab.viewMode as keyof typeof cycle] ?? 'editor';
     import('./lib/stores/tabs.svelte').then(({ updateTabViewMode }) => {
-      updateTabViewMode(activeTabId!, newMode);
+      updateTabViewMode(activeTabId!, newMode as any);
     });
+  }
+
+  function startSplitDrag(e: MouseEvent): void {
+    e.preventDefault();
+    const editorArea = (e.target as HTMLElement).parentElement!;
+    const rect = editorArea.getBoundingClientRect();
+    const onMove = (ev: MouseEvent) => {
+      const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+      splitPercent = Math.max(20, Math.min(80, pct));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   }
 
   function showNotif(detail: { message: string; type: string }): void {
@@ -413,6 +435,10 @@
       closeTab(editor, id);
       if (tabStore.tabs.length === 0) newFile();
     }}
+    onTabReorder={(from, to) => {
+      const tab = tabStore.tabs.splice(from, 1)[0];
+      tabStore.tabs.splice(to, 0, tab);
+    }}
   />
 
   <!-- Main content area -->
@@ -422,13 +448,21 @@
     <div
       class="editor-container"
       class:hidden={activeTab?.viewMode === 'preview'}
+      style:flex={isSplit && activeTab?.viewMode === 'split' ? `0 0 ${splitPercent}%` : ''}
     >
       <div bind:this={editorContainer} class="monaco-container"></div>
     </div>
 
-    <!-- Markdown preview -->
+    <!-- Split handle + Markdown preview -->
     {#if showPreview && activeTab}
-      <div class="preview-container">
+      {#if activeTab.viewMode === 'split'}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="split-handle"
+          onmousedown={startSplitDrag}
+        ></div>
+      {/if}
+      <div class="preview-container" style:flex={activeTab.viewMode === 'split' ? `0 0 ${100 - splitPercent}%` : ''}>
         <MarkdownPreview
           source={activeTab.content}
           mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
@@ -588,6 +622,18 @@
     flex: 1;
     width: 100%;
     height: 100%;
+  }
+
+  .split-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: rgba(128, 128, 128, 0.2);
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .split-handle:hover {
+    background: rgba(128, 128, 128, 0.5);
   }
 
   .preview-container {

@@ -13,6 +13,7 @@
     onTabClick?: (tabId: string) => void;
     onTabClose?: (tabId: string) => void;
     onTabMiddleClick?: (tabId: string) => void;
+    onTabReorder?: (fromIndex: number, toIndex: number) => void;
   }
 
   let {
@@ -26,8 +27,68 @@
     borderColor = '#3e3d32',
     onTabClick = undefined,
     onTabClose = undefined,
-    onTabMiddleClick = undefined
+    onTabMiddleClick = undefined,
+    onTabReorder = undefined,
   }: Props = $props();
+
+  let dragIdx = $state(-1);
+  let dragOverIdx = $state(-1);
+  let isDragging = false;
+  let dragStartX = 0;
+
+  function handleTabMouseDown(e: MouseEvent, idx: number): void {
+    if (e.button === 1) { // middle click
+      e.preventDefault();
+      onTabMiddleClick?.(tabs[idx]?.id ?? '');
+      return;
+    }
+    if (e.button !== 0) return;
+
+    dragStartX = e.clientX;
+    const startIdx = idx;
+
+    const onMove = (ev: MouseEvent) => {
+      // Start drag after 5px threshold
+      if (!isDragging && Math.abs(ev.clientX - dragStartX) > 5) {
+        isDragging = true;
+        dragIdx = startIdx;
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+      }
+      if (!isDragging) return;
+
+      // Find which tab we're over
+      const tabsArea = (ev.target as HTMLElement)?.closest?.('.tabs-area') ??
+        document.querySelector('.tabs-area');
+      if (!tabsArea) return;
+
+      const tabEls = tabsArea.querySelectorAll('.tab');
+      for (let i = 0; i < tabEls.length; i++) {
+        const rect = tabEls[i].getBoundingClientRect();
+        if (ev.clientX >= rect.left && ev.clientX <= rect.right) {
+          dragOverIdx = i;
+          break;
+        }
+      }
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+
+      if (isDragging && dragIdx >= 0 && dragOverIdx >= 0 && dragIdx !== dragOverIdx) {
+        onTabReorder?.(dragIdx, dragOverIdx);
+      }
+      isDragging = false;
+      dragIdx = -1;
+      dragOverIdx = -1;
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
 
   function handleMiddleClick(e: MouseEvent, tabId: string): void {
     if (e.button === 1) {
@@ -40,19 +101,21 @@
 <div class="tab-bar" style:background-color={bgColor} style:border-bottom="1px solid {borderColor}">
   <!-- Tab list — NO drag region, tabs must be clickable -->
   <div class="tabs-area">
-    {#each tabs as tab (tab.id)}
+    {#each tabs as tab, idx (tab.id)}
       <div
         class="tab"
         class:active={tab.id === activeTabId}
+        class:drag-over={dragOverIdx === idx && dragIdx !== idx}
         style:background-color={tab.id === activeTabId ? tabActiveBg : tabInactiveBg}
         style:color={tab.id === activeTabId ? tabActiveFg : tabInactiveFg}
         style:border-right="1px solid {borderColor}"
+        style:opacity={dragIdx === idx ? '0.4' : '1'}
         role="tab"
         tabindex="0"
         aria-selected={tab.id === activeTabId}
-        onclick={() => onTabClick?.(tab.id)}
+        onclick={() => { if (!isDragging) onTabClick?.(tab.id); }}
         onkeydown={(e) => e.key === 'Enter' && onTabClick?.(tab.id)}
-        onmousedown={(e) => handleMiddleClick(e, tab.id)}
+        onmousedown={(e) => handleTabMouseDown(e, idx)}
       >
         <span class="tab-title" title={tab.filePath ?? tab.title}>
           {tab.title}
@@ -121,6 +184,10 @@
 
   .tab.active {
     border-top-color: #A6E22E;
+  }
+
+  .tab.drag-over {
+    border-left: 2px solid #A6E22E;
   }
 
   .tab:hover:not(.active) {
