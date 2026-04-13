@@ -12,6 +12,7 @@ vite.config.ts.timestamp-*
 # Build output
 /dist
 /src-tauri/target
+/release-output
 
 # IDE
 .vscode/settings.json

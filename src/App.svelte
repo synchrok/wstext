@@ -41,7 +41,7 @@
   } from './lib/zoom';
   import { formatDocument } from './lib/formatting';
   import { setLanguage, getLanguageDisplayName } from './lib/languageOverride';
-  import { TodoManager, injectTodoStyles } from './lib/todo';
+  import { TodoManager, injectTodoStyles, setSupportBracketV } from './lib/todo';
 
   // Components
   import MenuBar from './lib/components/MenuBar.svelte';
@@ -99,6 +99,7 @@
       // Register themes BEFORE creating editor
       registerAllThemes();
       injectTodoStyles();
+      setSupportBracketV(appSettings.supportBracketV);
 
       // Create Monaco editor
       editor = monaco.editor.create(editorContainer, {
@@ -140,15 +141,15 @@
         updateSetting('fontSize', size);
       });
 
-      // Setup keyboard shortcuts
-      setupKeyboardShortcuts();
-
-      // Setup file drop
-      await setupFileDrop();
-
       // AbortController — ensures ALL event listeners are removed on HMR/unmount
       const ac = new AbortController();
       const sig = { signal: ac.signal };
+
+      // Setup keyboard shortcuts (pass signal for cleanup)
+      setupKeyboardShortcuts(ac.signal);
+
+      // Setup file drop (guarded against re-registration)
+      await setupFileDrop();
       eventAbort = ac;
 
       // Wire menu events (all use AbortController for cleanup)
@@ -544,6 +545,7 @@
         tabSize: appSettings.tabSize,
         minimap: appSettings.minimap,
         checkboxEnabled: appSettings.checkboxEnabled,
+        supportBracketV: appSettings.supportBracketV,
       }}
       bgColor={themeColors.bgSecondary}
       fgColor={themeColors.fgPrimary}
@@ -576,6 +578,9 @@
             todoManager?.dispose();
             todoManager = new TodoManager(editor);
           }
+        }
+        if (changes.supportBracketV !== undefined) {
+          setSupportBracketV(changes.supportBracketV);
         }
         showSettings = false;
       }}

@@ -84,7 +84,12 @@ export async function initSession(): Promise<void> {
   const appWindow = getCurrentWindow();
   await appWindow.onCloseRequested(async (event) => {
     event.preventDefault();
-    await handleCleanExit();
+    // Force destroy after 3s regardless
+    const forceQuit = setTimeout(() => appWindow.destroy(), 3000);
+    try {
+      await handleCleanExit();
+    } catch { /* ignore */ }
+    clearTimeout(forceQuit);
     await appWindow.destroy();
   });
 }

@@ -187,8 +187,12 @@ export async function saveFileAs(tab: TabState): Promise<boolean> {
   }
 }
 
+let fileDropRegistered = false;
+
 /** Set up file drag-and-drop handling on the Tauri webview. */
 export async function setupFileDrop(): Promise<void> {
+  if (fileDropRegistered) return; // Prevent duplicate registration (HMR)
+  fileDropRegistered = true;
   try {
     const webview = getCurrentWebview();
     await webview.onDragDropEvent((event) => {

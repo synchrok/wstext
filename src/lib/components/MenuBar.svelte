@@ -61,7 +61,7 @@
 
   async function quit() {
     closeMenu();
-    await getCurrentWindow().close();
+    await closeWindow();
   }
 
   async function minimizeWindow() {
@@ -73,15 +73,17 @@
   }
 
   async function closeWindow() {
-    const win = getCurrentWindow();
-    // Force destroy after 2s if clean close hangs
-    const fallback = setTimeout(() => win.destroy(), 2000);
     try {
-      await win.close();
-    } catch {
-      clearTimeout(fallback);
-      await win.destroy();
-    }
+      // Save session first
+      const { saveSessionMetadata } = await import('../session.svelte');
+      await Promise.race([
+        saveSessionMetadata(),
+        new Promise(r => setTimeout(r, 1500)), // 1.5s timeout
+      ]);
+    } catch { /* proceed to exit */ }
+    // Kill process directly — most reliable way to close in Tauri
+    const { exit } = await import('@tauri-apps/plugin-process');
+    await exit(0);
   }
 </script>
 

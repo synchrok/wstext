@@ -4,17 +4,29 @@ import * as monaco from 'monaco-editor';
 export const UNCHECKED = '☐';
 export const CHECKED = '☑';
 
-// Regex for file format (on disk) — also consumes optional trailing space
-const FILE_TODO_REGEX = /\[([ x]?)\] ?/g;
 // Regex for display format (in editor)
 const DISPLAY_TODO_REGEX = /[☐☑]/g;
 
-/** Convert file format → display format (for loading into editor) */
-export function fileToDisplay(text: string): string {
-  return text.replace(FILE_TODO_REGEX, (_, c) => c === 'x' ? CHECKED : UNCHECKED);
+/** Whether [v] is also recognized as checked */
+let _supportV = true;
+
+export function setSupportBracketV(enabled: boolean): void {
+  _supportV = enabled;
 }
 
-/** Convert display format → file format (for saving to disk) */
+/** Build the file-format regex based on current settings */
+function getFileRegex(): RegExp {
+  return _supportV ? /\[([ xv]?)\] ?/g : /\[([ x]?)\] ?/g;
+}
+
+/** Convert file format → display format (for loading into editor) */
+export function fileToDisplay(text: string): string {
+  return text.replace(getFileRegex(), (_, c) =>
+    (c === 'x' || (_supportV && c === 'v')) ? CHECKED : UNCHECKED
+  );
+}
+
+/** Convert display format → file format (for saving to disk) — always saves as [x] */
 export function displayToFile(text: string): string {
   return text.replace(DISPLAY_TODO_REGEX, (c) => c === CHECKED ? '[x] ' : '[ ] ');
 }
@@ -24,6 +36,8 @@ export class TodoManager {
   private decorationIds: string[] = [];
   private disposables: monaco.IDisposable[] = [];
   private isReplacing = false;
+  private _editorDom: HTMLElement | null = null;
+  private _copyHandler: EventListener | null = null;
 
   constructor(editor: monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
@@ -56,7 +70,30 @@ export class TodoManager {
       run: () => this.toggleLines(),
     });
 
+    // Intercept copy/cut → convert ☐/☑ back to [ ]/[x] in clipboard
+    const copyHandler = (e: ClipboardEvent) => {
+      const selection = this.editor.getSelection();
+      if (!selection || selection.isEmpty()) return;
+      const model = this.editor.getModel();
+      if (!model) return;
+      const selectedText = model.getValueInRange(selection);
+      // Only intercept if selection contains checkbox chars
+      if (selectedText.includes(UNCHECKED) || selectedText.includes(CHECKED)) {
+        e.preventDefault();
+        const converted = displayToFile(selectedText);
+        e.clipboardData?.setData('text/plain', converted);
+      }
+    };
+    const editorDom = this.editor.getDomNode();
+    if (editorDom) {
+      editorDom.addEventListener('copy', copyHandler as EventListener);
+      editorDom.addEventListener('cut', copyHandler as EventListener);
+    }
+
     this.disposables.push(contentDisposable, mouseDisposable, keyDisposable, toggleAction);
+    // Store DOM ref for cleanup
+    this._editorDom = editorDom;
+    this._copyHandler = copyHandler as EventListener;
 
     // Initial decoration pass
     this.refreshDecorations();
@@ -68,14 +105,14 @@ export class TodoManager {
     if (!model) return;
 
     const text = model.getValue();
-    FILE_TODO_REGEX.lastIndex = 0;
+    const regex = getFileRegex();
     const edits: { range: monaco.Range; text: string }[] = [];
     let match: RegExpExecArray | null;
 
-    while ((match = FILE_TODO_REGEX.exec(text)) !== null) {
+    while ((match = regex.exec(text)) !== null) {
       const startPos = model.getPositionAt(match.index);
       const endPos = model.getPositionAt(match.index + match[0].length);
-      const replacement = match[1] === 'x' ? CHECKED : UNCHECKED;
+      const replacement = (match[1] === 'x' || (_supportV && match[1] === 'v')) ? CHECKED : UNCHECKED;
       edits.push({
         range: new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column),
         text: replacement,
@@ -227,6 +264,10 @@ export class TodoManager {
   }
 
   dispose(): void {
+    if (this._editorDom && this._copyHandler) {
+      this._editorDom.removeEventListener('copy', this._copyHandler);
+      this._editorDom.removeEventListener('cut', this._copyHandler);
+    }
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
     this.disposables.forEach(d => d.dispose());
     this.disposables = [];

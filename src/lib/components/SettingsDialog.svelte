@@ -10,6 +10,7 @@
       tabSize: 2 | 4;
       minimap: boolean;
       checkboxEnabled: boolean;
+      supportBracketV: boolean;
     };
     bgColor?: string;
     fgColor?: string;
@@ -94,6 +95,7 @@
     if (localSettings.tabSize !== settings.tabSize) changes.tabSize = localSettings.tabSize;
     if (localSettings.minimap !== settings.minimap) changes.minimap = localSettings.minimap;
     if (localSettings.checkboxEnabled !== settings.checkboxEnabled) changes.checkboxEnabled = localSettings.checkboxEnabled;
+    if (localSettings.supportBracketV !== settings.supportBracketV) changes.supportBracketV = localSettings.supportBracketV;
     
     // Check font settings
     const fontParts: string[] = [];
@@ -202,6 +204,17 @@
               <label class="toggle">
                 <input type="checkbox" bind:checked={localSettings.checkboxEnabled} />
                 <span class="slider" style:background-color={localSettings.checkboxEnabled ? accentColor : borderColor}></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-title">Support [v] as checked</div>
+                <div class="setting-desc" style:color={fgMuted}>Recognize [v] in addition to [x] as checked checkbox</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" bind:checked={localSettings.supportBracketV} />
+                <span class="slider" style:background-color={localSettings.supportBracketV ? accentColor : borderColor}></span>
               </label>
             </div>
 

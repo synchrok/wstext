@@ -75,6 +75,8 @@ export interface AppSettings {
   minimap: boolean;
   /** Whether todo checkboxes (☐/☑) are enabled. */
   checkboxEnabled: boolean;
+  /** Whether [v] is also recognized as checked (in addition to [x]) */
+  supportBracketV: boolean;
 }
 
 /**
@@ -105,4 +107,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wordWrap: 'on',
   minimap: true,
   checkboxEnabled: true,
+  supportBracketV: true,
 };

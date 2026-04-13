@@ -8,7 +8,7 @@ function emit(event: string, detail?: unknown): void {
  * Set up keyboard shortcuts that are not handled by the native menu.
  * Call this once during app initialization.
  */
-export function setupKeyboardShortcuts(): void {
+export function setupKeyboardShortcuts(signal?: AbortSignal): void {
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     const ctrl = e.ctrlKey || e.metaKey;
 
@@ -74,7 +74,7 @@ export function setupKeyboardShortcuts(): void {
       emit('wstext:prev-tab');
       return;
     }
-  });
+  }, signal ? { signal } : undefined);
 }
 
 // Re-export for convenience
