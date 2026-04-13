@@ -34,6 +34,8 @@
         { "path": "E:/**" },
         { "path": "F:/**" }
       ]
-    }
+    },
+    "updater:default",
+    "process:allow-restart"
   ]
 }
