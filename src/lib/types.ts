@@ -77,6 +77,28 @@ export interface AppSettings {
   checkboxEnabled: boolean;
   /** Whether [v] is also recognized as checked (in addition to [x]) */
   supportBracketV: boolean;
+  /** Whether the folder sidebar is visible. */
+  sidebarVisible: boolean;
+  /** Width of the folder sidebar in pixels. */
+  sidebarWidth: number;
+  /** Root folder paths opened in the sidebar. */
+  sidebarRoots: string[];
+  /** File extensions to hide in the folder tree (e.g. [".meta"]). */
+  excludedExtensions: string[];
+}
+
+/**
+ * A single entry in the folder tree (file or directory).
+ */
+export interface FolderEntry {
+  /** Entry name (filename or folder name, not full path). */
+  name: string;
+  /** Absolute path to this entry. */
+  path: string;
+  /** Whether this entry is a directory. */
+  isDirectory: boolean;
+  /** Children entries (populated on expand, null if not yet loaded). */
+  children: FolderEntry[] | null;
 }
 
 /**
@@ -108,4 +130,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   minimap: true,
   checkboxEnabled: true,
   supportBracketV: true,
+  sidebarVisible: false,
+  sidebarWidth: 220,
+  sidebarRoots: [],
+  excludedExtensions: ['.meta'],
 };

@@ -54,6 +54,13 @@ export function setupKeyboardShortcuts(signal?: AbortSignal): void {
       return;
     }
 
+    // Ctrl+B — toggle sidebar
+    if (ctrl && e.key === 'b' && !e.shiftKey) {
+      e.preventDefault();
+      emit(MENU_EVENTS.TOGGLE_SIDEBAR);
+      return;
+    }
+
     // Ctrl+Shift+M — toggle markdown preview
     if (ctrl && e.key === 'M' && e.shiftKey) {
       e.preventDefault();

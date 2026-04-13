@@ -133,6 +133,9 @@
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.OPEN_FILE)}>
             <span>Open...</span><span class="shortcut" style:color={fgMuted}>Ctrl+O</span>
           </button>
+          <button class="menu-item" onclick={() => emit(MENU_EVENTS.OPEN_FOLDER)}>
+            <span>Open Folder...</span>
+          </button>
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.SAVE_FILE)}>
             <span>Save</span><span class="shortcut" style:color={fgMuted}>Ctrl+S</span>
           </button>
@@ -199,6 +202,9 @@
       </button>
       {#if activeMenu === 'view'}
         <div class="dropdown" style:background-color={bgColor} style:border-color={borderColor}>
+          <button class="menu-item" onclick={() => emit(MENU_EVENTS.TOGGLE_SIDEBAR)}>
+            <span>Toggle Sidebar</span><span class="shortcut" style:color={fgMuted}>Ctrl+B</span>
+          </button>
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.TOGGLE_MINIMAP)}>
             <span>Toggle Minimap</span>
           </button>

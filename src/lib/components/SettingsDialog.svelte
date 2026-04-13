@@ -11,6 +11,7 @@
       minimap: boolean;
       checkboxEnabled: boolean;
       supportBracketV: boolean;
+      excludedExtensions: string[];
     };
     bgColor?: string;
     fgColor?: string;
@@ -37,6 +38,9 @@
 
   // Local state for settings
   let localSettings = $state({ ...settings });
+
+  // Excluded extensions as comma-separated text
+  let excludedExtText = $state(settings.excludedExtensions?.join(', ') ?? '.meta');
 
   // Font tab state
   let primaryFont = $state('');
@@ -112,6 +116,17 @@
     if (newFontFamily !== settings.fontFamily) changes.fontFamily = newFontFamily;
     if (localSettings.fontSize !== settings.fontSize) changes.fontSize = localSettings.fontSize;
     
+    // Check excluded extensions
+    const newExts = excludedExtText
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map((s) => (s.startsWith('.') ? s : `.${s}`));
+    const oldExts = settings.excludedExtensions ?? [];
+    if (JSON.stringify(newExts) !== JSON.stringify(oldExts)) {
+      changes.excludedExtensions = newExts;
+    }
+
     // Check theme settings
     if (localSettings.theme !== settings.theme) changes.theme = localSettings.theme;
 
@@ -255,6 +270,22 @@
                   4
                 </button>
               </div>
+            </div>
+
+            <div class="setting-row" style="align-items: flex-start;">
+              <div class="setting-info">
+                <div class="setting-title">Excluded Extensions</div>
+                <div class="setting-desc" style:color={fgMuted}>Hide files with these extensions in folder sidebar (comma-separated)</div>
+              </div>
+              <input
+                type="text"
+                class="ext-input"
+                bind:value={excludedExtText}
+                placeholder=".meta, .tmp"
+                style:background-color="rgba(0,0,0,0.2)"
+                style:color={fgColor}
+                style:border-color={borderColor}
+              />
             </div>
           </div>
         {:else if activeTab === 'font'}
@@ -509,6 +540,17 @@
 
   .radio-divider {
     width: 1px;
+  }
+
+  .ext-input {
+    width: 150px;
+    padding: 6px 10px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+    flex-shrink: 0;
   }
 
   /* Font Tab */

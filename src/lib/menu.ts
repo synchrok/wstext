@@ -13,11 +13,13 @@ import type { ThemeName } from './types';
 export const MENU_EVENTS = {
   NEW_FILE: 'wstext:new-file',
   OPEN_FILE: 'wstext:open-file',
+  OPEN_FOLDER: 'wstext:open-folder',
   SAVE_FILE: 'wstext:save-file',
   SAVE_FILE_AS: 'wstext:save-file-as',
   CLOSE_TAB: 'wstext:close-tab',
   TOGGLE_MINIMAP: 'wstext:toggle-minimap',
   TOGGLE_WORD_WRAP: 'wstext:toggle-word-wrap',
+  TOGGLE_SIDEBAR: 'wstext:toggle-sidebar',
   ZOOM_IN: 'wstext:zoom-in',
   ZOOM_OUT: 'wstext:zoom-out',
   RESET_ZOOM: 'wstext:reset-zoom',

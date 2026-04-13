@@ -49,6 +49,7 @@
   import StatusBar from './lib/components/StatusBar.svelte';
   import MarkdownPreview from './lib/components/MarkdownPreview.svelte';
   import SettingsDialog from './lib/components/SettingsDialog.svelte';
+  import FolderSidebar from './lib/components/FolderSidebar.svelte';
 
   // Editor state
   let editorContainer: HTMLDivElement;
@@ -65,6 +66,8 @@
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
   let splitPercent = $state(50);
+  let sidebarWidth = $derived(appSettings.sidebarWidth);
+  let sidebarVisible = $derived(appSettings.sidebarVisible);
 
   // Local reactive aliases for tabStore
   let tabs = $derived(tabStore.tabs);
@@ -224,6 +227,19 @@
       window.addEventListener('wstext:notification', (e) => {
         showNotif((e as CustomEvent).detail);
       }, sig);
+      window.addEventListener('wstext:toggle-sidebar', async () => {
+        const { toggleSidebar } = await import('./lib/stores/folders.svelte');
+        toggleSidebar();
+      }, sig);
+      window.addEventListener('wstext:open-folder', async () => {
+        const { addRootFolder } = await import('./lib/stores/folders.svelte');
+        await addRootFolder();
+      }, sig);
+      window.addEventListener('wstext:drop-folder', async (e) => {
+        const folderPath = (e as CustomEvent).detail;
+        const { addRootFolderByPath } = await import('./lib/stores/folders.svelte');
+        await addRootFolderByPath(folderPath);
+      }, sig);
       // Session restore: open tabs from session
       window.addEventListener('wstext:restore-tab', (e) => {
         const tabData = (e as CustomEvent).detail;
@@ -337,6 +353,29 @@
     });
   }
 
+  function startSidebarDrag(e: MouseEvent): void {
+    e.preventDefault();
+    const onMove = (ev: MouseEvent) => {
+      const newWidth = Math.max(140, Math.min(500, ev.clientX));
+      updateSetting('sidebarWidth', newWidth);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  async function handleSidebarFileClick(filePath: string): Promise<void> {
+    const { openFileByPath } = await import('./lib/fileOps.svelte');
+    await openFileByPath(filePath);
+  }
+
   function startSplitDrag(e: MouseEvent): void {
     e.preventDefault();
     const editorArea = (e.target as HTMLElement).parentElement!;
@@ -421,11 +460,13 @@
   <TabBar
     {tabs}
     {activeTabId}
+    {sidebarVisible}
     bgColor={themeColors.tabBarBg}
     tabActiveBg={themeColors.tabActive}
     tabInactiveBg={themeColors.tabInactive}
     tabActiveFg={themeColors.tabActiveFg}
     tabInactiveFg={themeColors.tabInactiveFg}
+    accentColor={themeColors.accent}
     borderColor={themeColors.border}
     onTabClick={(id) => switchTab(editor, id)}
     onTabClose={(id) => {
@@ -442,37 +483,56 @@
     }}
   />
 
-  <!-- Main content area -->
-  <div class="editor-area" class:split-view={isSplit && showPreview}>
-
-    <!-- Monaco editor (hidden when in toggle preview mode) -->
-    <div
-      class="editor-container"
-      class:hidden={activeTab?.viewMode === 'preview'}
-      style:flex={isSplit && activeTab?.viewMode === 'split' ? `0 0 ${splitPercent}%` : ''}
-    >
-      <div bind:this={editorContainer} class="monaco-container"></div>
-    </div>
-
-    <!-- Split handle + Markdown preview -->
-    {#if showPreview && activeTab}
-      {#if activeTab.viewMode === 'split'}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="split-handle"
-          onmousedown={startSplitDrag}
-        ></div>
-      {/if}
-      <div class="preview-container" style:flex={activeTab.viewMode === 'split' ? `0 0 ${100 - splitPercent}%` : ''}>
-        <MarkdownPreview
-          source={activeTab.content}
-          mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
-          isDark={appSettings.theme !== 'solarized-light'}
+  <!-- Main content area (sidebar + editor) -->
+  <div class="main-content">
+    <!-- Folder sidebar -->
+    {#if sidebarVisible}
+      <div class="sidebar-panel" style:width="{sidebarWidth}px" style:min-width="{sidebarWidth}px">
+        <FolderSidebar
+          activeFilePath={activeTab?.filePath ?? null}
+          bgColor={themeColors.bgSecondary}
+          fgColor={themeColors.fgPrimary}
+          fgMuted={themeColors.fgMuted}
+          borderColor={themeColors.border}
+          accentColor={themeColors.accent}
+          onFileClick={handleSidebarFileClick}
         />
       </div>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="sidebar-handle" onmousedown={startSidebarDrag}></div>
     {/if}
 
+    <!-- Editor area -->
+    <div class="editor-area" class:split-view={isSplit && showPreview}>
 
+      <!-- Monaco editor (hidden when in toggle preview mode) -->
+      <div
+        class="editor-container"
+        class:hidden={activeTab?.viewMode === 'preview'}
+        style:flex={isSplit && activeTab?.viewMode === 'split' ? `0 0 ${splitPercent}%` : ''}
+      >
+        <div bind:this={editorContainer} class="monaco-container"></div>
+      </div>
+
+      <!-- Split handle + Markdown preview -->
+      {#if showPreview && activeTab}
+        {#if activeTab.viewMode === 'split'}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="split-handle"
+            onmousedown={startSplitDrag}
+          ></div>
+        {/if}
+        <div class="preview-container" style:flex={activeTab.viewMode === 'split' ? `0 0 ${100 - splitPercent}%` : ''}>
+          <MarkdownPreview
+            source={activeTab.content}
+            mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
+            isDark={appSettings.theme !== 'solarized-light'}
+          />
+        </div>
+      {/if}
+
+    </div>
   </div>
 
   <!-- Status bar -->
@@ -546,6 +606,7 @@
         minimap: appSettings.minimap,
         checkboxEnabled: appSettings.checkboxEnabled,
         supportBracketV: appSettings.supportBracketV,
+        excludedExtensions: appSettings.excludedExtensions,
       }}
       bgColor={themeColors.bgSecondary}
       fgColor={themeColors.fgPrimary}
@@ -582,6 +643,11 @@
         if (changes.supportBracketV !== undefined) {
           setSupportBracketV(changes.supportBracketV);
         }
+        if (changes.excludedExtensions !== undefined) {
+          import('./lib/stores/folders.svelte').then(({ setExcludedExtensions }) => {
+            setExcludedExtensions(changes.excludedExtensions);
+          });
+        }
         showSettings = false;
       }}
       onClose={() => showSettings = false}
@@ -600,11 +666,38 @@
     transition: background-color 0.15s ease, color 0.15s ease;
   }
 
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+  }
+
+  .sidebar-panel {
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-handle {
+    width: 3px;
+    cursor: col-resize;
+    background: transparent;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .sidebar-handle:hover {
+    background: rgba(128, 128, 128, 0.4);
+  }
+
   .editor-area {
     flex: 1;
     display: flex;
     overflow: hidden;
     position: relative;
+    min-width: 0;
   }
 
   .editor-area.split-view {

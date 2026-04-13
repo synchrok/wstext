@@ -1,6 +1,6 @@
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
-import { readFile } from '@tauri-apps/plugin-fs';
+import { readFile, stat } from '@tauri-apps/plugin-fs';
 import type { TabState } from './types';
 import { displayToFile, fileToDisplay } from './todo';
 import { readFileWithEncoding, writeFileWithEncoding } from './utils/encoding';
@@ -199,11 +199,30 @@ export async function setupFileDrop(): Promise<void> {
       if (event.payload.type === 'drop') {
         const paths = event.payload.paths ?? [];
         for (const path of paths) {
-          void openFileByPath(path);
+          void handleDroppedPath(path);
         }
       }
     });
   } catch {
     // File drop not critical — fail silently
+  }
+}
+
+/**
+ * Route a dropped path: directories → folder sidebar, files → editor tab.
+ */
+async function handleDroppedPath(path: string): Promise<void> {
+  try {
+    const info = await stat(path);
+    if (info.isDirectory) {
+      window.dispatchEvent(
+        new CustomEvent('wstext:drop-folder', { detail: path })
+      );
+    } else {
+      void openFileByPath(path);
+    }
+  } catch {
+    // stat failed — try opening as file (fallback)
+    void openFileByPath(path);
   }
 }

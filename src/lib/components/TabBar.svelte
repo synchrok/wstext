@@ -1,14 +1,17 @@
 <script lang="ts">
   import type { TabState } from '../types';
+  import { MENU_EVENTS } from '../menu';
 
   interface Props {
     tabs?: TabState[];
     activeTabId?: string | null;
+    sidebarVisible?: boolean;
     bgColor?: string;
     tabActiveBg?: string;
     tabInactiveBg?: string;
     tabActiveFg?: string;
     tabInactiveFg?: string;
+    accentColor?: string;
     borderColor?: string;
     onTabClick?: (tabId: string) => void;
     onTabClose?: (tabId: string) => void;
@@ -19,17 +22,23 @@
   let {
     tabs = [],
     activeTabId = null,
+    sidebarVisible = false,
     bgColor = '#1e1f1c',
     tabActiveBg = '#272822',
     tabInactiveBg = '#1e1f1c',
     tabActiveFg = '#F8F8F2',
     tabInactiveFg = '#75715E',
+    accentColor = '#A6E22E',
     borderColor = '#3e3d32',
     onTabClick = undefined,
     onTabClose = undefined,
     onTabMiddleClick = undefined,
     onTabReorder = undefined,
   }: Props = $props();
+
+  function emit(event: string) {
+    window.dispatchEvent(new CustomEvent(event));
+  }
 
   let dragIdx = $state(-1);
   let dragOverIdx = $state(-1);
@@ -99,6 +108,20 @@
 </script>
 
 <div class="tab-bar" style:background-color={bgColor} style:border-bottom="1px solid {borderColor}">
+  <!-- Sidebar toggle -->
+  <button
+    class="sidebar-toggle"
+    class:active={sidebarVisible}
+    onclick={() => emit(MENU_EVENTS.TOGGLE_SIDEBAR)}
+    title="Toggle Sidebar (Ctrl+B)"
+    style:color={sidebarVisible ? accentColor : tabInactiveFg}
+    style:border-right="1px solid {borderColor}"
+  >
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="1" y="2" width="14" height="12" rx="1" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="5.5" y1="2" x2="5.5" y2="14" stroke="currentColor" stroke-width="1.3"/>
+    </svg>
+  </button>
   <!-- Tab list — NO drag region, tabs must be clickable -->
   <div class="tabs-area">
     {#each tabs as tab, idx (tab.id)}
@@ -147,6 +170,28 @@
     align-items: stretch;
     flex-shrink: 0;
     height: 34px;
+  }
+
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.1s, background-color 0.1s;
+  }
+
+  .sidebar-toggle:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .sidebar-toggle.active {
+    opacity: 0.9;
   }
 
   .tabs-area {
