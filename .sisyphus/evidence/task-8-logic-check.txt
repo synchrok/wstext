@@ -1,0 +1,27 @@
+Task 8: Update check + install logic verification
+==================================================
+Date: Mon Apr 13 2026
+
+1. npm run check result:
+   svelte-check found 0 errors and 5 warnings in 2 files
+   (warnings are pre-existing CSS/state warnings, not related to updater)
+
+2. Function existence verification:
+   checkForUpdate: True (exported)
+   installUpdate: True (exported)
+   checkPortableUpdate: True (private)
+   checkInstalledUpdate: True (private)
+   github.com/repos/synchrok/wstext: True (GitHub API endpoint)
+
+3. Added functions summary:
+   - isNewerVersion(current, remote): semver comparison, strips 'v' prefix
+   - checkForUpdate(): main entry, detects portable vs installed via invoke('is_portable')
+   - checkInstalledUpdate(): uses @tauri-apps/plugin-updater check()
+   - checkPortableUpdate(): uses GitHub API /repos/synchrok/wstext/releases/latest
+   - installUpdate(): calls pendingUpdate.downloadAndInstall() + relaunch()
+
+4. All functions have try/catch with console.warn (no error dialogs)
+5. All imports are dynamic (await import(...)) for bundle optimization
+6. No timer/interval added — single invocation design
+
+VERDICT: PASS
