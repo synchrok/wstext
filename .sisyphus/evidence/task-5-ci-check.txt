@@ -1,0 +1,13 @@
+TAURI_SIGNING_PRIVATE_KEY: True
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD: True
+includeUpdaterJson: True
+portable: True
+WSText-portable.exe: True
+softprops/action-gh-release: True
+matrix preserved (3 platforms): True
+workflow_dispatch preserved: True
+
+--- YAML validation (basic indent check) ---
+No tab characters found (good)
+
+All checks passed: True

@@ -61,12 +61,28 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v${{ inputs.version || '0.0.0-dev' }}
           releaseName: 'WSText v${{ inputs.version || ''dev'' }}'
           releaseDraft: ${{ inputs.draft }}
           prerelease: false
+          includeUpdaterJson: true
           args: --target ${{ matrix.target }}
+
+      - name: Rename portable EXE (Windows only)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $src = "src-tauri/target/${{ matrix.target }}/release/WSText.exe"
+          $dst = "WSText-portable.exe"
+          if (Test-Path $src) {
+            Copy-Item $src $dst
+            Write-Host "Portable EXE created: $dst"
+          } else {
+            Write-Warning "Source EXE not found: $src"
+          }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -77,4 +93,14 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app
+            WSText-portable.exe
           if-no-files-found: ignore
+
+      - name: Upload portable EXE to Release (Windows only)
+        if: matrix.platform == 'windows-latest' && inputs.version != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          files: WSText-portable.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
