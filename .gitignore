@@ -16,3 +16,4 @@ vite.config.ts.timestamp-*
 
 # IDE
 .vscode/settings.json
+.tauri/
