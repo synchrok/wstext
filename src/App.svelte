@@ -3,7 +3,7 @@
   import * as monaco from 'monaco-editor';
 
   // Lib imports
-  import { registerAllThemes, setTheme, getThemeColors } from './lib/themes';
+  import { registerAllThemes, setTheme, getThemeColors, LIGHT_THEMES } from './lib/themes';
   import { appSettings, loadSettings, updateSetting } from './lib/stores/settings.svelte';
   import {
     tabStore,
@@ -42,6 +42,7 @@
   import { formatDocument } from './lib/formatting';
   import { setLanguage, getLanguageDisplayName } from './lib/languageOverride';
   import { TodoManager, injectTodoStyles, setSupportBracketV } from './lib/todo';
+  import { updateState, checkForUpdate, installUpdate, dismissVersion, loadUpdateState } from './lib/stores/updater.svelte';
 
   // Components
   import MenuBar from './lib/components/MenuBar.svelte';
@@ -50,6 +51,7 @@
   import MarkdownPreview from './lib/components/MarkdownPreview.svelte';
   import SettingsDialog from './lib/components/SettingsDialog.svelte';
   import FolderSidebar from './lib/components/FolderSidebar.svelte';
+  import UpdateNotification from './lib/components/UpdateNotification.svelte';
 
   // Editor state
   let editorContainer: HTMLDivElement;
@@ -66,6 +68,7 @@
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
   let splitPercent = $state(50);
+  let previewOriginalTheme = $state<string | null>(null);
   let sidebarWidth = $derived(appSettings.sidebarWidth);
   let sidebarVisible = $derived(appSettings.sidebarVisible);
 
@@ -215,6 +218,7 @@
         togglePreview();
       }, sig);
       window.addEventListener('wstext:open-settings', () => {
+        previewOriginalTheme = null;
         showSettings = true;
       }, sig);
       window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
@@ -285,6 +289,9 @@
         // Refresh todo decorations on the now-loaded model
         todoManager?.refreshDecorations();
       }
+
+      // Check for updates after UI is ready (non-blocking)
+      loadUpdateState().then(() => checkForUpdate());
     })();
 
     return () => {
@@ -527,7 +534,7 @@
           <MarkdownPreview
             source={activeTab.content}
             mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
-            isDark={appSettings.theme !== 'solarized-light'}
+            isDark={!LIGHT_THEMES.has(appSettings.theme)}
           />
         </div>
       {/if}
@@ -613,7 +620,15 @@
       fgMuted={themeColors.fgMuted}
       borderColor={themeColors.border}
       accentColor={themeColors.accent}
+      onPreviewTheme={(theme) => {
+        if (previewOriginalTheme === null) {
+          previewOriginalTheme = appSettings.theme;
+        }
+        appSettings.theme = theme as any;
+        setTheme(theme as any);
+      }}
       onSave={(changes) => {
+        previewOriginalTheme = null;
         for (const [key, value] of Object.entries(changes)) {
           updateSetting(key as any, value);
         }
@@ -650,9 +665,32 @@
         }
         showSettings = false;
       }}
-      onClose={() => showSettings = false}
+      onClose={() => {
+        if (previewOriginalTheme !== null) {
+          appSettings.theme = previewOriginalTheme as any;
+          setTheme(previewOriginalTheme as any);
+          previewOriginalTheme = null;
+        }
+        showSettings = false;
+      }}
     />
   {/if}
+
+  <UpdateNotification
+    visible={updateState.availableVersion !== null && !updateState.checking}
+    isPortable={updateState.isPortable}
+    version={updateState.availableVersion ?? ''}
+    updateUrl={updateState.updateUrl ?? ''}
+    downloading={updateState.downloading}
+    hasDirtyTabs={tabs.some(t => t.isDirty)}
+    bgColor={themeColors.bgSecondary}
+    fgColor={themeColors.fgPrimary}
+    fgMuted={themeColors.fgMuted}
+    accentColor={themeColors.accent}
+    borderColor={themeColors.border}
+    onUpdate={() => installUpdate()}
+    onDismiss={() => dismissVersion(updateState.availableVersion!)}
+  />
 </div>
 
 <style>

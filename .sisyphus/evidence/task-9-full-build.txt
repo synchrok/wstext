@@ -1,0 +1,17 @@
+Task 9: Integrate auto-update into App.svelte
+==================================================
+
+## npm run check — 0 errors
+svelte-check found 0 errors and 5 warnings in 2 files
+(all warnings pre-existing: unused CSS selectors, state_referenced_locally)
+
+## npm run build — SUCCESS
+vite v6.4.1 building for production...
+✓ 1530 modules transformed.
+✓ built in 1m 4s
+
+## Changes made to src/App.svelte:
+1. Added import: updateState, checkForUpdate, installUpdate, dismissVersion, loadUpdateState from updater.svelte
+2. Added import: UpdateNotification component
+3. Added loadUpdateState().then(() => checkForUpdate()) at end of onMount IIFE (non-blocking)
+4. Added <UpdateNotification> component below SettingsDialog with all required props
