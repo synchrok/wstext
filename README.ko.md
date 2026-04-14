@@ -51,11 +51,13 @@
 
 [Releases](../../releases) 페이지에서 최신 버전을 다운로드하세요:
 
-| 플랫폼 | 파일 |
-|--------|------|
-| Windows | `WSText_x.x.x_x64-setup.exe` 또는 `.msi` |
-| macOS (Apple Silicon) | `WSText_x.x.x_aarch64.dmg` |
-| macOS (Intel) | `WSText_x.x.x_x64.dmg` |
+| 플랫폼 | 파일 | 비고 |
+|--------|------|------|
+| Windows (설치형) | `WSText_x.x.x_x64-setup.exe` | 권장. 자동 업데이트 포함. |
+| Windows (포터블) | `WSText-portable.exe` | 설치 불필요. 업데이트 알림만 표시. |
+| macOS | `WSText_x.x.x_aarch64.dmg` | Apple Silicon. 자동 업데이트 포함. |
+
+앱 시작 시 자동으로 최신 버전을 확인하고, 새 버전이 있으면 알려줍니다.
 
 ## 단축키
 
