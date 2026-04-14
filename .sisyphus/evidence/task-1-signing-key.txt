@@ -1,2 +1,0 @@
-private_key=True
-public_key=True

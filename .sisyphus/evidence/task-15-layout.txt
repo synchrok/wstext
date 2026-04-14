@@ -1,8 +1,0 @@
-Task 15: Main layout integration + SublimeText styling completed.
-
-- `src/App.svelte` completely rewritten to wire all components together (TabBar, Monaco, MarkdownPreview, StatusBar).
-- `src/app.css` updated with SublimeText-inspired global styles.
-- All menu events connected to actual handlers.
-- Theme switching works.
-- Empty state (no tabs) shows guidance message.
-- `npm run check` passes with 0 errors.

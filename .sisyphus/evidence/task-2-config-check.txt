@@ -1,9 +1,0 @@
-Validation command:
-node -e "const c = require('./src-tauri/tauri.conf.json'); console.log('pubkey:', c.plugins?.updater?.pubkey?.length > 10 ? 'OK' : 'MISSING'); console.log('endpoints:', c.plugins?.updater?.endpoints?.[0] ? 'OK' : 'MISSING'); console.log('artifacts:', c.bundle?.createUpdaterArtifacts || 'MISSING'); console.log('targets:', c.bundle?.targets); console.log('All OK')"
-
-Result:
-pubkey: OK
-endpoints: OK
-artifacts: v1Compatible
-targets: [ 'nsis', 'msi' ]
-All OK

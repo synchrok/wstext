@@ -1,2 +1,0 @@
-wstext_scaffold_tmp@0.1.0 C:\Repository\wstext
-`-- @tauri-apps/plugin-updater@2.10.1

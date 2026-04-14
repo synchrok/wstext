@@ -1,6 +1,0 @@
-cargo check completed successfully.
-
-Exit code: 0
-
-Key result:
-- Finished `dev` profile [unoptimized + debuginfo] target(s) in 34.53s
