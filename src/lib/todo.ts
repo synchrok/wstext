@@ -39,12 +39,21 @@ export class TodoManager {
   private _editorDom: HTMLElement | null = null;
   private _copyHandler: EventListener | null = null;
 
+  /** Check if current model is markdown — skip native checkboxes for md */
+  private isMarkdown(): boolean {
+    const model = this.editor.getModel();
+    if (!model) return false;
+    const lang = model.getLanguageId();
+    return lang === 'markdown' || lang === 'mdx';
+  }
+
   constructor(editor: monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
 
     // On content change: auto-convert any [] or [ ] or [x] typed by user → ☐/☑
     const contentDisposable = editor.onDidChangeModelContent(() => {
       if (this.isReplacing) return;
+      if (this.isMarkdown()) return; // md files use standard [ ]/[x] syntax
       this.autoReplace();
       this.refreshDecorations();
     });
@@ -130,6 +139,11 @@ export class TodoManager {
   refreshDecorations(): void {
     const model = this.editor.getModel();
     if (!model) { this.decorationIds = []; return; }
+    // Skip decorations for markdown files
+    if (this.isMarkdown()) {
+      this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
+      return;
+    }
 
     const decorations: monaco.editor.IModelDeltaDecoration[] = [];
     const lineCount = model.getLineCount();

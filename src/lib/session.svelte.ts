@@ -146,7 +146,10 @@ async function restoreTab(tab: TabState): Promise<void> {
       }
     }
 
-    content = fileToDisplay(content);
+    // Only convert checkboxes for non-markdown files
+    if (tab.language !== 'markdown') {
+      content = fileToDisplay(content);
+    }
 
     // Open tab via global event (tabs store handles the actual tab creation)
     window.dispatchEvent(
@@ -169,7 +172,8 @@ function buildSessionState(): SessionState {
     tabs: tabStore.tabs.map((t) => ({
       ...t,
       // Always store full content — Tauri FS scope may block re-read on restore
-      content: displayToFile(t.content),
+      // Markdown keeps original [ ]/[x] format; others convert ☐/☑ back
+      content: t.language === 'markdown' ? t.content : displayToFile(t.content),
     })),
     savedAt: Date.now(),
   };

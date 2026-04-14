@@ -121,7 +121,7 @@ export async function openFileByPath(path: string): Promise<string | null> {
     const tabId = _openTabFn({
       filePath: path,
       title: fileName,
-      content: fileToDisplay(content),
+      content: language === 'markdown' ? content : fileToDisplay(content),
       isDirty: false,
       cursor: { line: 1, column: 1 },
       scrollTop: 0,
@@ -149,7 +149,9 @@ export async function saveFile(tab: TabState): Promise<boolean> {
   }
 
   try {
-    await writeFileWithEncoding(tab.filePath, displayToFile(tab.content), tab.encoding, tab.hasBOM);
+    const isMarkdown = tab.language === 'markdown';
+    const output = isMarkdown ? tab.content : displayToFile(tab.content);
+    await writeFileWithEncoding(tab.filePath, output, tab.encoding, tab.hasBOM);
     return true;
   } catch (err) {
     showNotification(`저장 실패: ${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -172,7 +174,9 @@ export async function saveFileAs(tab: TabState): Promise<boolean> {
   if (path === null) return false;
 
   try {
-    await writeFileWithEncoding(path, displayToFile(tab.content), tab.encoding, tab.hasBOM);
+    const isMarkdown = tab.language === 'markdown';
+    const output = isMarkdown ? tab.content : displayToFile(tab.content);
+    await writeFileWithEncoding(path, output, tab.encoding, tab.hasBOM);
 
     // Notify tab store to update path/title and clear dirty state
     window.dispatchEvent(
