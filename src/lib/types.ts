@@ -11,7 +11,18 @@ export type ViewMode = 'editor' | 'preview' | 'split';
 /**
  * Available built-in themes.
  */
-export type ThemeName = 'monokai' | 'dracula' | 'one-dark' | 'solarized-dark' | 'solarized-light';
+export type ThemeName =
+  | 'monokai'
+  | 'dracula'
+  | 'one-dark'
+  | 'mariana'
+  | 'sixteen'
+  | 'breakers'
+  | 'solarized-dark'
+  | 'solarized-light'
+  | 'celeste'
+  | 'notepad'
+  | 'notepad-warm';
 
 /**
  * Represents a single open editor tab.

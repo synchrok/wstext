@@ -20,6 +20,7 @@
     accentColor?: string;
     onSave?: (changes: Record<string, any>) => void;
     onClose?: () => void;
+    onPreviewTheme?: (theme: string) => void;
   }
 
   let {
@@ -31,7 +32,8 @@
     borderColor = '#3e3d32',
     accentColor = '#A6E22E',
     onSave,
-    onClose
+    onClose,
+    onPreviewTheme
   }: Props = $props();
 
   let activeTab = $state<'general' | 'font' | 'theme'>('general');
@@ -48,13 +50,22 @@
   let filterText = $state('');
   let systemFonts = $state<string[]>([]);
 
+  // Snapshot of the initial theme before any preview — used to detect actual changes
+  const initialTheme = settings.theme;
+
   // Theme definitions
   const themes = [
     { id: 'monokai', name: 'Monokai', bg: '#272822', fg: '#F8F8F2', accent: '#A6E22E' },
     { id: 'dracula', name: 'Dracula', bg: '#282a36', fg: '#f8f8f2', accent: '#ff79c6' },
     { id: 'one-dark', name: 'One Dark', bg: '#282c34', fg: '#abb2bf', accent: '#61afef' },
+    { id: 'mariana', name: 'Mariana', bg: '#303841', fg: '#D8DEE9', accent: '#5FB4B4' },
+    { id: 'sixteen', name: 'Sixteen', bg: '#151515', fg: '#D0D0D0', accent: '#6A9FB5' },
+    { id: 'breakers', name: 'Breakers', bg: '#1B2B34', fg: '#CDD3DE', accent: '#6699CC' },
     { id: 'solarized-dark', name: 'Solarized Dark', bg: '#002b36', fg: '#839496', accent: '#2aa198' },
-    { id: 'solarized-light', name: 'Solarized Light', bg: '#fdf6e3', fg: '#657b83', accent: '#2aa198' }
+    { id: 'solarized-light', name: 'Solarized Light', bg: '#fdf6e3', fg: '#657b83', accent: '#2aa198' },
+    { id: 'celeste', name: 'Celeste', bg: '#FFFFFF', fg: '#333333', accent: '#3B5BB5' },
+    { id: 'notepad', name: 'Notepad', bg: '#FFFFFF', fg: '#1E1E1E', accent: '#0078D4' },
+    { id: 'notepad-warm', name: 'Notepad Warm', bg: '#FFF8F0', fg: '#3C3836', accent: '#D65D0E' },
   ];
 
   onMount(() => {
@@ -127,8 +138,8 @@
       changes.excludedExtensions = newExts;
     }
 
-    // Check theme settings
-    if (localSettings.theme !== settings.theme) changes.theme = localSettings.theme;
+    // Check theme settings (compare against initial snapshot, not reactive prop)
+    if (localSettings.theme !== initialTheme) changes.theme = localSettings.theme;
 
     if (Object.keys(changes).length > 0) {
       onSave?.(changes);
@@ -371,7 +382,7 @@
                 class:active={localSettings.theme === theme.id}
                 style:border-color={localSettings.theme === theme.id ? accentColor : borderColor}
                 style:background-color="rgba(0,0,0,0.1)"
-                onclick={() => localSettings.theme = theme.id}
+                onclick={() => { localSettings.theme = theme.id; onPreviewTheme?.(theme.id); }}
               >
                 <div class="theme-preview" style:background-color={theme.bg}>
                   <div class="color-dot" style:background-color={theme.fg}></div>
@@ -645,8 +656,8 @@
   /* Theme Tab */
   .theme-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
   }
 
   .theme-card {

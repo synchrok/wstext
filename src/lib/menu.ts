@@ -159,6 +159,21 @@ export async function setupMenu(): Promise<void> {
             action: () => emit(MENU_EVENTS.SET_THEME, 'one-dark' as ThemeName),
           }),
           await MenuItem.new({
+            id: 'theme-mariana',
+            text: 'Mariana',
+            action: () => emit(MENU_EVENTS.SET_THEME, 'mariana' as ThemeName),
+          }),
+          await MenuItem.new({
+            id: 'theme-sixteen',
+            text: 'Sixteen',
+            action: () => emit(MENU_EVENTS.SET_THEME, 'sixteen' as ThemeName),
+          }),
+          await MenuItem.new({
+            id: 'theme-breakers',
+            text: 'Breakers',
+            action: () => emit(MENU_EVENTS.SET_THEME, 'breakers' as ThemeName),
+          }),
+          await MenuItem.new({
             id: 'theme-solarized-dark',
             text: 'Solarized Dark',
             action: () => emit(MENU_EVENTS.SET_THEME, 'solarized-dark' as ThemeName),
@@ -167,6 +182,21 @@ export async function setupMenu(): Promise<void> {
             id: 'theme-solarized-light',
             text: 'Solarized Light',
             action: () => emit(MENU_EVENTS.SET_THEME, 'solarized-light' as ThemeName),
+          }),
+          await MenuItem.new({
+            id: 'theme-celeste',
+            text: 'Celeste',
+            action: () => emit(MENU_EVENTS.SET_THEME, 'celeste' as ThemeName),
+          }),
+          await MenuItem.new({
+            id: 'theme-notepad',
+            text: 'Notepad',
+            action: () => emit(MENU_EVENTS.SET_THEME, 'notepad' as ThemeName),
+          }),
+          await MenuItem.new({
+            id: 'theme-notepad-warm',
+            text: 'Notepad Warm',
+            action: () => emit(MENU_EVENTS.SET_THEME, 'notepad-warm' as ThemeName),
           }),
         ],
       }),
