@@ -154,9 +154,12 @@
       // Setup keyboard shortcuts (pass signal for cleanup)
       setupKeyboardShortcuts(ac.signal);
 
-      // Setup file drop (guarded against re-registration)
-      await setupFileDrop();
+      // Setup file drop (returns unlisten function)
+      const unlistenDrop = await setupFileDrop();
       eventAbort = ac;
+      // Store drop cleanup for unmount
+      const origAbort = ac;
+      ac.signal.addEventListener('abort', () => unlistenDrop());
 
       // Wire menu events (all use AbortController for cleanup)
       window.addEventListener(MENU_EVENTS.NEW_FILE, () => newFile(), sig);

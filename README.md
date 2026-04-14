@@ -89,8 +89,7 @@ npm run tauri build
 
 ## Roadmap
 
-- [ ] Project mode — manage multiple files and folders
-- [ ] Find & replace
+- [x] Project mode — manage multiple files and folders
 - [ ] Plugin system
 - [ ] Linux support
 
