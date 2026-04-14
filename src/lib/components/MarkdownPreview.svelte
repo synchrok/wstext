@@ -172,4 +172,78 @@
     border-top: 1px solid rgba(128,128,128,0.3);
     margin: 24px 0;
   }
+
+  /* GitHub HTML: align="center" support */
+  .markdown-content :global([align="center"]) {
+    text-align: center;
+  }
+  .markdown-content :global([align="right"]) {
+    text-align: right;
+  }
+
+  /* Images */
+  .markdown-content :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
+
+  /* Inline code inside headings/links */
+  .markdown-content :global(h1 code),
+  .markdown-content :global(h2 code),
+  .markdown-content :global(h3 code) {
+    font-size: 0.85em;
+  }
+
+  /* kbd element (keyboard shortcut) */
+  .markdown-content :global(kbd) {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 0.8em;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    line-height: 1.4;
+    border: 1px solid rgba(128,128,128,0.4);
+    border-radius: 3px;
+    background-color: rgba(128,128,128,0.1);
+  }
+
+  /* Details/summary (collapsible) */
+  .markdown-content :global(details) {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border: 1px solid rgba(128,128,128,0.3);
+    border-radius: 4px;
+  }
+  .markdown-content :global(summary) {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* Lists: tighter spacing */
+  .markdown-content :global(ul),
+  .markdown-content :global(ol) {
+    padding-left: 2em;
+    margin: 8px 0;
+  }
+  .markdown-content :global(li) {
+    margin: 2px 0;
+  }
+  .markdown-content :global(li > p) {
+    margin: 4px 0;
+  }
+
+  /* Paragraphs */
+  .markdown-content :global(p) {
+    margin: 12px 0;
+  }
+
+  /* Strong/em */
+  .markdown-content :global(strong) {
+    font-weight: 600;
+  }
+
+  /* Strikethrough */
+  .markdown-content :global(del) {
+    opacity: 0.6;
+  }
 </style>

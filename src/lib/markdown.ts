@@ -37,7 +37,7 @@ hljs.registerLanguage('sh', bash);
  * Creating a new instance per render is expensive — create once at module level.
  */
 const md = new MarkdownIt({
-  html: false,       // Disable raw HTML input — prevents XSS at source
+  html: true,        // GitHub Flavored Markdown supports inline HTML
   linkify: true,
   typographer: true,
   highlight(str: string, lang: string): string {
@@ -72,13 +72,21 @@ export function renderMarkdown(source: string): string {
       'ul', 'ol', 'li',
       'a', 'img',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'hr', 'div', 'span',
-      'input', // for task list checkboxes
+      'hr', 'div', 'span', 'sub', 'sup', 'b', 'i', 'u',
+      'details', 'summary', // GitHub collapsible sections
+      'input', 'label',     // task list checkboxes
+      'kbd', 'var', 'samp', 'mark',
+      'dl', 'dt', 'dd',
+      'picture', 'source', 'video', 'audio',
     ],
     ALLOWED_ATTR: [
-      'href', 'src', 'alt', 'title', 'class', 'id',
-      'type', 'checked', 'disabled', // for task list checkboxes
+      'href', 'src', 'alt', 'title', 'class', 'id', 'name',
+      'type', 'checked', 'disabled',
       'colspan', 'rowspan',
+      'align', 'valign', 'width', 'height',  // GitHub HTML: <p align="center">, <img width="128">
+      'start', 'reversed',                    // ordered list attrs
+      'open',                                 // <details open>
+      'for',                                  // <label for>
     ],
   });
 }
