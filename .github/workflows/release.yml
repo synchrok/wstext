@@ -26,10 +26,7 @@ jobs:
             label: Windows
           - platform: macos-latest
             target: aarch64-apple-darwin
-            label: macOS-arm64
-          - platform: macos-14
-            target: x86_64-apple-darwin
-            label: macOS-x64
+            label: macOS
 
     runs-on: ${{ matrix.platform }}
     name: Build (${{ matrix.label }})
@@ -90,10 +87,8 @@ jobs:
         with:
           name: wstext-${{ matrix.label }}
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app
             WSText-portable.exe
           if-no-files-found: ignore
 
@@ -105,3 +100,16 @@ jobs:
           files: WSText-portable.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up .sig files from Release
+        if: inputs.version != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ inputs.version }}"
+          # Delete .sig files (signatures are already embedded in latest.json)
+          for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name | select(endswith(".sig"))'); do
+            echo "Removing $asset"
+            gh release delete-asset "$TAG" "$asset" --yes || true
+          done
