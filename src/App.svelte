@@ -50,6 +50,7 @@
   import StatusBar from './lib/components/StatusBar.svelte';
   import MarkdownPreview from './lib/components/MarkdownPreview.svelte';
   import SettingsDialog from './lib/components/SettingsDialog.svelte';
+  import AboutDialog from './lib/components/AboutDialog.svelte';
   import FolderSidebar from './lib/components/FolderSidebar.svelte';
   import UpdateNotification from './lib/components/UpdateNotification.svelte';
 
@@ -65,6 +66,7 @@
   let showEncPicker = $state(false);
   let showSpacesPicker = $state(false);
   let showSettings = $state(false);
+  let showAbout = $state(false);
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
   let splitPercent = $state(50);
@@ -224,6 +226,7 @@
         previewOriginalTheme = null;
         showSettings = true;
       }, sig);
+      window.addEventListener(MENU_EVENTS.ABOUT, () => (showAbout = true), sig);
       window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
       window.addEventListener('wstext:prev-tab', () => prevTab(editor), sig);
       window.addEventListener('wstext:tab-saved-as', (e) => {
@@ -691,6 +694,18 @@
         }
         showSettings = false;
       }}
+    />
+  {/if}
+
+  {#if showAbout}
+    <AboutDialog
+      visible={showAbout}
+      bgColor={themeColors.bgSecondary}
+      fgColor={themeColors.fgPrimary}
+      fgMuted={themeColors.fgMuted}
+      accentColor={themeColors.accent}
+      borderColor={themeColors.border}
+      onClose={() => (showAbout = false)}
     />
   {/if}
 

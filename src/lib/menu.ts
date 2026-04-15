@@ -26,6 +26,7 @@ export const MENU_EVENTS = {
   TOGGLE_PREVIEW: 'wstext:toggle-preview',
   SET_THEME: 'wstext:set-theme',
   FORMAT_DOCUMENT: 'wstext:format-document',
+  ABOUT: 'wstext:about',
 } as const;
 
 function emit(event: string, detail?: unknown): void {
@@ -197,6 +198,16 @@ export async function setupMenu(): Promise<void> {
             id: 'theme-notepad-warm',
             text: 'Notepad Warm',
             action: () => emit(MENU_EVENTS.SET_THEME, 'notepad-warm' as ThemeName),
+          }),
+        ],
+      }),
+      await Submenu.new({
+        text: 'Help',
+        items: [
+          await MenuItem.new({
+            id: 'about',
+            text: 'About WSText',
+            action: () => emit(MENU_EVENTS.ABOUT),
           }),
         ],
       }),
