@@ -231,6 +231,25 @@
         </div>
       {/if}
     </div>
+
+    <!-- Help Menu -->
+    <div class="menu-container">
+      <button 
+        class="menu-button" 
+        class:active={activeMenu === 'help'}
+        onclick={() => toggleMenu('help')}
+        onmouseenter={() => handleMenuHover('help')}
+      >
+        Help
+      </button>
+      {#if activeMenu === 'help'}
+        <div class="dropdown" style:background-color={bgColor} style:border-color={borderColor}>
+          <button class="menu-item" onclick={() => emit(MENU_EVENTS.ABOUT)}>
+            <span>About WSText</span>
+          </button>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -379,13 +398,6 @@
     width: 100%;
   }
 
-  .menu-separator {
-    height: 1px;
-    margin: 4px 0;
-    width: 100%;
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-
   .menu-label {
     font-size: 11px;
     padding: 4px 16px;
@@ -397,12 +409,6 @@
   .drag-region {
     flex: 1;
     min-width: 8px;
-  }
-
-  .window-controls {
-    display: flex;
-    align-items: stretch;
-    flex-shrink: 0;
   }
 
   .win-btn {

@@ -80,6 +80,19 @@
         </div>
         
         <div class="license" style:color={fgMuted}>License: AGPL-3.0</div>
+
+        <div class="oss-section" style:color={fgMuted}>
+          <div class="oss-title">Open Source</div>
+          <div class="oss-list">
+            <span>Tauri (MIT)</span>
+            <span>Svelte (MIT)</span>
+            <span>Monaco Editor (MIT)</span>
+            <span>highlight.js (BSD-3)</span>
+            <span>markdown-it (MIT)</span>
+            <span>DOMPurify (MPL-2.0)</span>
+            <span>Pretendard (OFL-1.1)</span>
+          </div>
+        </div>
       </div>
 
       <div class="actions" style:border-top-color={borderColor}>
@@ -165,6 +178,26 @@
 
   .license {
     font-size: 12px;
+  }
+
+  .oss-section {
+    margin-top: 16px;
+  }
+
+  .oss-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  .oss-list {
+    font-size: 11px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 10px;
+    line-height: 1.5;
   }
 
   .actions {
