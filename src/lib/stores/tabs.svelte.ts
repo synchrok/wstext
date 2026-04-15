@@ -72,10 +72,17 @@ export function switchTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: st
   const model = modelCache.get(tabId);
   if (model) {
     editor.setModel(model);
-    // Restore view state
+    // Restore view state (cached from previous switch, or fall back to tab data)
     const vs = viewStateCache.get(tabId);
     if (vs) {
       editor.restoreViewState(vs);
+    } else {
+      // No cached view state — use tab's cursor/scroll (e.g. after session restore)
+      const tab = tabStore.tabs.find(t => t.id === tabId);
+      if (tab) {
+        editor.setPosition({ lineNumber: tab.cursor.line, column: tab.cursor.column });
+        editor.setScrollTop(tab.scrollTop);
+      }
     }
     editor.focus();
   }

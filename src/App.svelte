@@ -262,6 +262,14 @@
         }
       });
 
+      // Monaco scroll tracking
+      editor.onDidScrollChange((e) => {
+        if (activeTabId && e.scrollTopChanged) {
+          const tab = tabStore.tabs.find(t => t.id === activeTabId);
+          if (tab) tab.scrollTop = e.scrollTop;
+        }
+      });
+
       // Monaco content changes → dirty tracking + todo decorations
       editor.onDidChangeModelContent(() => {
         if (activeTabId) {
@@ -289,6 +297,13 @@
         const savedActiveId = tabStore.activeTabId;
         tabStore.activeTabId = null; // Reset so switchTab doesn't skip
         switchTab(editor, savedActiveId);
+        // Restore cursor position and scroll from session data
+        const restoredTab = tabStore.tabs.find(t => t.id === savedActiveId);
+        if (restoredTab) {
+          editor.setPosition({ lineNumber: restoredTab.cursor.line, column: restoredTab.cursor.column });
+          editor.setScrollTop(restoredTab.scrollTop);
+          editor.revealPositionInCenter({ lineNumber: restoredTab.cursor.line, column: restoredTab.cursor.column });
+        }
         // Refresh todo decorations on the now-loaded model
         todoManager?.refreshDecorations();
       }
