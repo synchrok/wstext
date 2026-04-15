@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="README.ko.md">?�국??/a>
+  <a href="README.ko.md">?�국??/a>
 </p>
 
 ---
@@ -106,4 +106,4 @@ npm run tauri build
 
 ## License
 
-MIT
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).

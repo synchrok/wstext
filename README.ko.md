@@ -107,4 +107,4 @@ npm run tauri build
 
 ## 라이선스
 
-MIT
+이 프로젝트는 [GNU Affero General Public License v3.0](LICENSE) 라이선스 하에 배포됩니다.
