@@ -135,6 +135,39 @@ export class TodoManager {
     }
   }
 
+  private replaceModelText(nextText: string): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+
+    const currentText = model.getValue();
+    if (currentText === nextText) return;
+
+    this.isReplacing = true;
+    try {
+      model.pushEditOperations(
+        [],
+        [{ range: model.getFullModelRange(), text: nextText }],
+        () => null
+      );
+    } finally {
+      this.isReplacing = false;
+    }
+  }
+
+  /** Convert ☐/☑ back to [ ]/[x] in the current model */
+  revertToFileFormat(): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+    this.replaceModelText(displayToFile(model.getValue()));
+  }
+
+  /** Convert [ ]/[x] in the current model to ☐/☑ */
+  convertToDisplayFormat(): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+    this.replaceModelText(fileToDisplay(model.getValue()));
+  }
+
   /** Apply color decorations to ☐ and ☑ characters */
   refreshDecorations(): void {
     const model = this.editor.getModel();

@@ -560,7 +560,36 @@
 
   function handleLanguageChange(lang: string): void {
     if (!activeTabId) return;
+    const prevLang = activeTab?.language;
     updateTabLanguage(activeTabId, lang);
+
+    if ((lang === 'markdown' || lang === 'mdx') && prevLang !== 'markdown' && prevLang !== 'mdx') {
+      suppressEditorContentSync = true;
+      try {
+        todoManager?.revertToFileFormat();
+      } finally {
+        suppressEditorContentSync = false;
+      }
+      const tab = getTabById(activeTabId);
+      if (tab) {
+        tab.content = editor.getValue();
+      }
+    }
+
+    if ((prevLang === 'markdown' || prevLang === 'mdx') && lang !== 'markdown' && lang !== 'mdx') {
+      suppressEditorContentSync = true;
+      try {
+        todoManager?.convertToDisplayFormat();
+      } finally {
+        suppressEditorContentSync = false;
+      }
+      const tab = getTabById(activeTabId);
+      if (tab) {
+        tab.content = editor.getValue();
+      }
+    }
+
+    todoManager?.refreshDecorations();
     showLangPicker = false;
   }
 
