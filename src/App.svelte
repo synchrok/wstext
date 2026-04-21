@@ -42,7 +42,9 @@
   import { formatDocument } from './lib/formatting';
   import { setLanguage, getLanguageDisplayName } from './lib/languageOverride';
   import { TodoManager, injectTodoStyles, setSupportBracketV } from './lib/todo';
+  import { FileWatcher } from './lib/fileWatcher.svelte';
   import { updateState, checkForUpdate, installUpdate, dismissVersion, loadUpdateState } from './lib/stores/updater.svelte';
+  import type { Encoding } from './lib/types';
 
   // Components
   import MenuBar from './lib/components/MenuBar.svelte';
@@ -58,8 +60,10 @@
   let editorContainer: HTMLDivElement;
   let editor: monaco.editor.IStandaloneCodeEditor;
   let todoManager: TodoManager | null = null;
+  let fileWatcher: FileWatcher | null = null;
   let zoomCleanup: (() => void) | null = null;
   let eventAbort: AbortController | null = null;
+  let suppressEditorContentSync = false;
 
   // UI state
   let showLangPicker = $state(false);
@@ -275,6 +279,7 @@
 
       // Monaco content changes → dirty tracking + todo decorations
       editor.onDidChangeModelContent(() => {
+        if (suppressEditorContentSync) return;
         if (activeTabId) {
           updateTabContent(activeTabId, editor.getValue());
         }
@@ -282,6 +287,17 @@
 
       // Initialize todo manager
       todoManager = new TodoManager(editor);
+      fileWatcher = new FileWatcher({
+        getTab: (tabId) => tabStore.tabs.find((tab) => tab.id === tabId),
+        onReload: async (tabId, payload) => {
+          replaceTabContent(tabId, payload.content, {
+            preserveDirty: false,
+            encoding: payload.encoding,
+            hasBOM: payload.hasBOM,
+          });
+        },
+        onError: (message) => showNotif({ message, type: 'error' }),
+      });
 
       // Restore session only if no tabs exist (guards against HMR re-mount)
       if (tabStore.tabs.length === 0) {
@@ -318,6 +334,7 @@
     return () => {
       eventAbort?.abort(); // Remove ALL event listeners at once
       zoomCleanup?.();
+      fileWatcher?.dispose();
       todoManager?.dispose();
       editor?.dispose();
     };
@@ -348,11 +365,59 @@
     }
   });
 
+  $effect(() => {
+    if (!fileWatcher) return;
+    void fileWatcher.reconcile(tabs);
+  });
+
+  function getTabById(tabId: string) {
+    return tabStore.tabs.find((tab) => tab.id === tabId) ?? null;
+  }
+
+  function replaceTabContent(
+    tabId: string,
+    content: string,
+    options: {
+      preserveDirty: boolean;
+      encoding?: Encoding;
+      hasBOM?: boolean;
+    }
+  ): void {
+    const tab = getTabById(tabId);
+    const model = getTabModel(tabId);
+    if (!tab || !model) return;
+
+    const wasDirty = tab.isDirty;
+    const isActiveModel = editor?.getModel() === model;
+    const viewState = isActiveModel ? editor.saveViewState() : null;
+
+    if (model.getValue() !== content) {
+      suppressEditorContentSync = true;
+      model.pushEditOperations([], [{ range: model.getFullModelRange(), text: content }], () => null);
+      suppressEditorContentSync = false;
+    }
+
+    tab.content = content;
+    tab.isDirty = options.preserveDirty ? wasDirty : false;
+    if (options.encoding) tab.encoding = options.encoding;
+    if (options.hasBOM !== undefined) tab.hasBOM = options.hasBOM;
+
+    if (isActiveModel && viewState) {
+      editor.restoreViewState(viewState);
+      editor.focus();
+    }
+
+    todoManager?.refreshDecorations();
+  }
+
   async function handleSave(): Promise<void> {
     if (!activeTab || !activeTabId) return;
     // Sync latest editor content to tab before saving
     if (editor) {
       updateTabContent(activeTabId, editor.getValue());
+    }
+    if (activeTab.filePath) {
+      fileWatcher?.markSelfSave(activeTabId, activeTab.filePath);
     }
     const success = await saveFile(activeTab);
     if (success) {
