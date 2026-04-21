@@ -53,6 +53,37 @@ const md = new MarkdownIt({
     return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`;
   },
 })
+
+// Generate GitHub-style heading IDs for anchor links
+const slugCounts = new Map();
+md.core.ruler.push('heading_anchors', (state) => {
+  for (const token of state.tokens) {
+    if (token.type === 'heading_open') {
+      const inline = state.tokens[state.tokens.indexOf(token) + 1];
+      if (inline && inline.type === 'inline') {
+        const text = inline.children
+          ?.filter(t => t.type === 'text' || t.type === 'code_inline')
+          .map(t => t.content)
+          .join('') ?? '';
+        let slug = text
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ\u3400-\u9FFF-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        // Handle duplicates
+        const count = slugCounts.get(slug) || 0;
+        slugCounts.set(slug, count + 1);
+        if (count > 0) slug += '-' + count;
+        token.attrSet('id', slug);
+      }
+    }
+  }
+  slugCounts.clear();
+});
+
+md
   .use(markdownItTaskLists, { enabled: true, label: true })
   .enable('table')
   .enable('strikethrough');

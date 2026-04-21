@@ -34,6 +34,21 @@
       }
     };
   });
+
+  function handleClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+    // Handle internal anchor links (#heading-id)
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      const container = (e.currentTarget as HTMLElement);
+      const el = container.querySelector(href);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 </script>
 
 <div
@@ -41,7 +56,9 @@
   class:dark={isDark}
   class:split={mode === 'split'}
 >
-  <div class="markdown-content">
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="markdown-content" onclick={handleClick}>
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html rendered}
   </div>
