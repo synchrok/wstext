@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import * as monaco from 'monaco-editor';
+  import { message } from '@tauri-apps/plugin-dialog';
 
   // Lib imports
   import { registerAllThemes, setTheme, getThemeColors, LIGHT_THEMES } from './lib/themes';
@@ -183,21 +184,10 @@
       }, sig);
       window.addEventListener(MENU_EVENTS.CLOSE_TAB, () => {
         if (activeTabId) {
-          closeTab(editor, activeTabId);
-          // Always keep at least one blank tab open
-          if (tabStore.tabs.length === 0) {
-            newFile();
-          }
+          void handleCloseTabRequest(activeTabId);
         }
       }, sig);
-      window.addEventListener('wstext:close-all-tabs', () => {
-        // Close all tabs
-        while (tabStore.tabs.length > 0) {
-          closeTab(editor, tabStore.tabs[0].id);
-        }
-        // Create one blank tab
-        newFile();
-      }, sig);
+      window.addEventListener('wstext:close-all-tabs', () => void handleCloseAllTabs(), sig);
       window.addEventListener(MENU_EVENTS.ZOOM_IN, () => {
         const size = zoomIn(editor);
         updateSetting('fontSize', size);
@@ -410,6 +400,70 @@
     todoManager?.refreshDecorations();
   }
 
+  async function saveTabById(tabId: string): Promise<boolean> {
+    const tab = getTabById(tabId);
+    const model = getTabModel(tabId);
+    if (!tab || !model) return false;
+
+    tab.content = model.getValue();
+    if (tab.filePath) {
+      fileWatcher?.markSelfSave(tabId, tab.filePath);
+    }
+
+    const success = await saveFile(tab);
+    if (success) {
+      markTabClean(tabId);
+    }
+    return success;
+  }
+
+  async function requestCloseTab(tabId: string): Promise<boolean> {
+    const tab = getTabById(tabId);
+    if (!tab) return true;
+
+    if (tab.isDirty) {
+      const result = await message('저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?', {
+        title: tab.title,
+        kind: 'warning',
+        buttons: 'YesNoCancel',
+      });
+
+      if (result === 'Cancel') return false;
+      if (result === 'Yes') {
+        const saved = await saveTabById(tabId);
+        if (!saved) return false;
+      }
+    }
+
+    closeTab(editor, tabId);
+    return true;
+  }
+
+  function ensureBlankTabIfNeeded(): void {
+    if (tabStore.tabs.length === 0) {
+      newFile();
+    }
+  }
+
+  async function handleCloseTabRequest(tabId: string): Promise<void> {
+    const closed = await requestCloseTab(tabId);
+    if (closed) {
+      ensureBlankTabIfNeeded();
+    }
+  }
+
+  async function handleCloseAllTabs(): Promise<void> {
+    const tabIds = tabStore.tabs.map((tab) => tab.id);
+
+    for (const tabId of tabIds) {
+      if (!getTabById(tabId)) continue;
+      const closed = await requestCloseTab(tabId);
+      if (!closed) return;
+    }
+
+    ensureBlankTabIfNeeded();
+  }
+
   async function handleSave(): Promise<void> {
     if (!activeTab || !activeTabId) return;
     // Sync latest editor content to tab before saving
@@ -562,14 +616,8 @@
     accentColor={themeColors.accent}
     borderColor={themeColors.border}
     onTabClick={(id) => switchTab(editor, id)}
-    onTabClose={(id) => {
-      closeTab(editor, id);
-      if (tabStore.tabs.length === 0) newFile();
-    }}
-    onTabMiddleClick={(id) => {
-      closeTab(editor, id);
-      if (tabStore.tabs.length === 0) newFile();
-    }}
+    onTabClose={(id) => void handleCloseTabRequest(id)}
+    onTabMiddleClick={(id) => void handleCloseTabRequest(id)}
     onTabReorder={(from, to) => {
       const tab = tabStore.tabs.splice(from, 1)[0];
       tabStore.tabs.splice(to, 0, tab);
