@@ -3,12 +3,14 @@
 
   interface Props {
     source?: string;
+    filePath?: string;
     mode?: 'toggle' | 'split';
     isDark?: boolean;
   }
 
   let {
     source = '',
+    filePath = '',
     mode = 'toggle',
     isDark = true,
   }: Props = $props();
@@ -21,7 +23,7 @@
     const text = source; // Track reactivity on source
     if (debounceTimer !== undefined) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      rendered = renderMarkdown(text);
+      rendered = renderMarkdown(text, filePath || undefined);
       debounceTimer = undefined;
     }, 150);
 

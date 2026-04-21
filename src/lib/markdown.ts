@@ -3,6 +3,7 @@ import MarkdownIt from 'markdown-it';
 import markdownItTaskLists from 'markdown-it-task-lists';
 import hljs from 'highlight.js/lib/core';
 import DOMPurify from 'dompurify';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 // Selective language import — avoids 1MB+ bundle from full hljs import
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -62,10 +63,10 @@ const md = new MarkdownIt({
  * @param source - Raw markdown text
  * @returns Sanitized HTML string safe for innerHTML
  */
-export function renderMarkdown(source: string): string {
+export function renderMarkdown(source: string, basePath?: string): string {
   const raw = md.render(source);
   // DOMPurify strips dangerous HTML even in Tauri webview (JS can still execute)
-  return DOMPurify.sanitize(raw, {
+  let sanitized = DOMPurify.sanitize(raw, {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 'blockquote',
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -89,4 +90,20 @@ export function renderMarkdown(source: string): string {
       'for',                                  // <label for>
     ],
   });
+
+  // Resolve relative image paths to Tauri asset URLs
+  if (basePath) {
+    const dir = basePath.replace(/[\\/][^\\/]*$/, '');
+    sanitized = sanitized.replace(
+      /(<img[^>]+src=")([^"]+)(")/g,
+      (match, before, src, after) => {
+        if (/^(https?:|data:|blob:|asset:|\/\/)/.test(src)) return match;
+        const sep = dir.includes('\\') ? '\\' : '/';
+        const abs = dir + sep + src.replace(/[\\/]/g, sep);
+        return before + convertFileSrc(abs) + after;
+      }
+    );
+  }
+
+  return sanitized;
 }

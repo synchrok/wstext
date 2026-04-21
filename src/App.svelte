@@ -696,6 +696,7 @@
         <div class="preview-container" style:flex={activeTab.viewMode === 'split' ? `0 0 ${100 - splitPercent}%` : ''}>
           <MarkdownPreview
             source={activeTab.content}
+            filePath={activeTab.filePath ?? undefined}
             mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
             isDark={!LIGHT_THEMES.has(appSettings.theme)}
           />
