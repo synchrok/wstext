@@ -91,34 +91,22 @@ export class TodoManager {
       run: () => this.toggleLines(),
     });
 
-    // Intercept copy/cut on document capture phase — runs BEFORE Monaco's handler
-    const copyHandler = (e: ClipboardEvent) => {
-      if (_copyAsCheckbox) return; // setting ON = keep ☐/☑ as-is
-      const model = this.editor.getModel();
-      if (!model) return;
-      // Check if this editor is focused
-      if (!this.editor.hasTextFocus()) return;
-      const selection = this.editor.getSelection();
-      let text: string;
-      if (!selection || selection.isEmpty()) {
-        const pos = this.editor.getPosition();
-        if (!pos) return;
-        text = model.getLineContent(pos.lineNumber) + model.getEOL();
-      } else {
-        text = model.getValueInRange(selection);
-      }
-      if (text.includes(UNCHECKED) || text.includes(CHECKED)) {
-        e.preventDefault();
-        e.clipboardData?.setData('text/plain', displayToFile(text));
-      }
-    };
-    document.addEventListener('copy', copyHandler as EventListener, true);
-    document.addEventListener('cut', copyHandler as EventListener, true);
+    // Monkey-patch navigator.clipboard.writeText to convert checkboxes
+    // Monaco uses Clipboard API directly, bypassing DOM copy events entirely
+    if (!(navigator.clipboard as any)._origWriteText) {
+      const orig = navigator.clipboard.writeText.bind(navigator.clipboard);
+      (navigator.clipboard as any)._origWriteText = orig;
+      navigator.clipboard.writeText = async (text: string) => {
+        if (!_copyAsCheckbox && (text.includes(UNCHECKED) || text.includes(CHECKED))) {
+          return orig(displayToFile(text));
+        }
+        return orig(text);
+      };
+    }
 
     this.disposables.push(contentDisposable, mouseDisposable, keyDisposable, toggleAction);
-    // Store DOM ref for cleanup
     this._editorDom = null;
-    this._copyHandler = copyHandler as EventListener;
+    this._copyHandler = null;
 
     // Initial decoration pass
     this.refreshDecorations();
@@ -327,9 +315,9 @@ export class TodoManager {
   }
 
   dispose(): void {
-    if (this._copyHandler) {
-      document.removeEventListener('copy', this._copyHandler, true);
-      document.removeEventListener('cut', this._copyHandler, true);
+    if ((navigator.clipboard as any)._origWriteText) {
+      navigator.clipboard.writeText = (navigator.clipboard as any)._origWriteText;
+      delete (navigator.clipboard as any)._origWriteText;
     }
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
     this.disposables.forEach(d => d.dispose());
