@@ -88,16 +88,21 @@ export class TodoManager {
 
     // Intercept copy/cut → convert ☐/☑ back to [ ]/[x] in clipboard
     const copyHandler = (e: ClipboardEvent) => {
-      const selection = this.editor.getSelection();
-      if (!selection || selection.isEmpty()) return;
       const model = this.editor.getModel();
       if (!model) return;
-      const selectedText = model.getValueInRange(selection);
-      // Only intercept if selection contains checkbox chars
-      if (selectedText.includes(UNCHECKED) || selectedText.includes(CHECKED)) {
+      const selection = this.editor.getSelection();
+      let text: string;
+      if (!selection || selection.isEmpty()) {
+        // No selection → Ctrl+C copies entire current line
+        const pos = this.editor.getPosition();
+        if (!pos) return;
+        text = model.getLineContent(pos.lineNumber) + model.getEOL();
+      } else {
+        text = model.getValueInRange(selection);
+      }
+      if (text.includes(UNCHECKED) || text.includes(CHECKED)) {
         e.preventDefault();
-        const converted = displayToFile(selectedText);
-        e.clipboardData?.setData('text/plain', converted);
+        e.clipboardData?.setData('text/plain', displayToFile(text));
       }
     };
     const editorDom = this.editor.getDomNode();
