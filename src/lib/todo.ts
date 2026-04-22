@@ -92,22 +92,17 @@ export class TodoManager {
     });
 
     // Override Ctrl+C / Ctrl+X to convert ☐/☑ → [ ]/[x]
-    const getTextForClipboard = (): string | null => {
+    // Get text from editor (selection or current line)
+    const getEditorText = (): string => {
       const model = this.editor.getModel();
-      if (!model) return null;
+      if (!model) return '';
       const selection = this.editor.getSelection();
-      let text: string;
       if (!selection || selection.isEmpty()) {
         const pos = this.editor.getPosition();
-        if (!pos) return null;
-        text = model.getLineContent(pos.lineNumber) + model.getEOL();
-      } else {
-        text = model.getValueInRange(selection);
+        if (!pos) return '';
+        return model.getLineContent(pos.lineNumber) + model.getEOL();
       }
-      if (!_copyAsCheckbox && (text.includes(UNCHECKED) || text.includes(CHECKED))) {
-        return displayToFile(text);
-      }
-      return null;
+      return model.getValueInRange(selection);
     };
 
     const copyOverride = editor.addAction({
@@ -115,12 +110,13 @@ export class TodoManager {
       label: 'Copy',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC],
       run: () => {
-        const converted = getTextForClipboard();
-        if (converted) {
-          navigator.clipboard.writeText(converted);
-        } else {
-          editor.trigger('wstext', 'editor.action.clipboardCopyAction', null);
+        let text = getEditorText();
+        if (!text) return;
+        // Convert only when setting is OFF (default)
+        if (!_copyAsCheckbox) {
+          text = displayToFile(text);
         }
+        navigator.clipboard.writeText(text);
       },
     });
 
@@ -129,20 +125,37 @@ export class TodoManager {
       label: 'Cut',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX],
       run: () => {
-        const converted = getTextForClipboard();
-        if (converted) {
-          navigator.clipboard.writeText(converted);
-          // Delete the selection or current line
-          const selection = editor.getSelection();
-          if (selection && !selection.isEmpty()) {
-            editor.executeEdits('wstext.cut', [{ range: selection, text: '' }]);
-          } else {
-            editor.trigger('wstext', 'editor.action.deleteAllLeft', null);
-            editor.trigger('wstext', 'editor.action.deleteAllRight', null);
-            editor.trigger('wstext', 'editor.action.joinLines', null);
-          }
+        let text = getEditorText();
+        if (!text) return;
+        if (!_copyAsCheckbox) {
+          text = displayToFile(text);
+        }
+        navigator.clipboard.writeText(text);
+        // Delete selection or current line
+        const selection = editor.getSelection();
+        if (selection && !selection.isEmpty()) {
+          editor.executeEdits('wstext.cut', [{ range: selection, text: '' }]);
         } else {
-          editor.trigger('wstext', 'editor.action.clipboardCutAction', null);
+          const pos = editor.getPosition();
+          if (pos) {
+            const model = editor.getModel();
+            if (model) {
+              const lineNum = pos.lineNumber;
+              const totalLines = model.getLineCount();
+              if (totalLines === 1) {
+                const range = model.getFullModelRange();
+                editor.executeEdits('wstext.cut', [{ range, text: '' }]);
+              } else {
+                const startLine = lineNum;
+                const endLine = lineNum < totalLines ? lineNum + 1 : lineNum;
+                const range = new monaco.Range(
+                  startLine, 1,
+                  endLine, endLine === lineNum ? model.getLineMaxColumn(endLine) : 1
+                );
+                editor.executeEdits('wstext.cut', [{ range, text: '' }]);
+              }
+            }
+          }
         }
       },
     });
