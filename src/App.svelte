@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import * as monaco from 'monaco-editor';
-  import { confirm } from '@tauri-apps/plugin-dialog';
+  import { ask, confirm } from '@tauri-apps/plugin-dialog';
 
   // Lib imports
   import { registerAllThemes, setTheme, getThemeColors, LIGHT_THEMES } from './lib/themes';
@@ -72,22 +72,7 @@
   let showSpacesPicker = $state(false);
   let showSettings = $state(false);
   let showAbout = $state(false);
-  let pendingConfirm = $state<{
-    message: string;
-    title: string;
-    resolve: (value: boolean) => void;
-  } | null>(null);
 
-  function inlineConfirm(message: string, title: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      pendingConfirm = { message, title, resolve };
-    });
-  }
-
-  function handleConfirmResult(result: boolean): void {
-    pendingConfirm?.resolve(result);
-    pendingConfirm = null;
-  }
   let notification = $state<{ message: string; type: string } | null>(null);
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
   let splitPercent = $state(50);
@@ -438,10 +423,12 @@
     if (!tab) return true;
 
     if (tab.isDirty) {
-      const shouldSave = await inlineConfirm(
-        '저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?',
-        tab.title
-      );
+      const shouldSave = await ask('저장하지 않은 변경사항이 있습니다.\n저장하시겠습니까?', {
+        title: tab.title,
+        kind: 'warning',
+        okLabel: '저장',
+        cancelLabel: '저장 안 함',
+      });
 
       if (shouldSave) {
         const saved = await saveTabById(tabId);
@@ -882,30 +869,6 @@
     onDismiss={() => dismissVersion(updateState.availableVersion!)}
   />
 
-  {#if pendingConfirm}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="confirm-overlay" onclick={() => handleConfirmResult(false)}>
-      <div class="confirm-dialog"
-        style:background-color={themeColors.bgSecondary}
-        style:color={themeColors.fgPrimary}
-        style:border-color={themeColors.border}
-        onclick={(e) => e.stopPropagation()}>
-        <div class="confirm-title">{pendingConfirm.title}</div>
-        <div class="confirm-message" style:color={themeColors.fgMuted}>{pendingConfirm.message}</div>
-        <div class="confirm-actions">
-          <button class="confirm-btn-primary"
-            style:background-color={themeColors.accent}
-            style:color={themeColors.bgSecondary}
-            onclick={() => handleConfirmResult(true)}>저장</button>
-          <button class="confirm-btn-secondary"
-            style:color={themeColors.fgMuted}
-            style:border-color={themeColors.border}
-            onclick={() => handleConfirmResult(false)}>저장 안 함</button>
-        </div>
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -1064,53 +1027,4 @@
     background-color: rgba(255, 255, 255, 0.1);
   }
 
-  .confirm-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-  }
-  .confirm-dialog {
-    border: 1px solid;
-    border-radius: 6px;
-    padding: 20px;
-    min-width: 300px;
-    max-width: 400px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-  .confirm-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-  .confirm-message {
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
-  .confirm-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-  .confirm-btn-primary {
-    padding: 6px 16px;
-    border: none;
-    border-radius: 3px;
-    font-size: 13px;
-    cursor: pointer;
-    font-weight: 600;
-    font-family: inherit;
-  }
-  .confirm-btn-secondary {
-    padding: 6px 16px;
-    background: none;
-    border: 1px solid;
-    border-radius: 3px;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-  }
 </style>
