@@ -628,6 +628,7 @@
   <!-- Tab bar (always visible — acts as drag region + window controls) -->
   <MenuBar
     activeFileName={activeTab?.title ?? ''}
+    activeFilePath={activeTab?.filePath ?? ''}
     bgColor={themeColors.bgSecondary}
     fgColor={themeColors.fgPrimary}
     fgMuted={themeColors.fgMuted}

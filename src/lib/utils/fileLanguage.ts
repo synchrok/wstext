@@ -20,6 +20,7 @@ const EXTENSION_MAP: Record<string, string> = {
   css: 'css',
   scss: 'scss',
   less: 'less',
+  svelte: 'html',
   // Data formats
   json: 'json',
   jsonc: 'json',

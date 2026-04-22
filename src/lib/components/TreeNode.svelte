@@ -80,8 +80,9 @@
 
   <!-- Children -->
   {#if isFolderExpanded(entry.path)}
+    <div class="indent-group" style:margin-left="{8 + depth * 16 + 6}px" style:border-left-color="{fgMuted}33">
     {#if isLoading && children.length === 0}
-      <div class="loading" style:color={fgMuted} style:padding-left="{8 + (depth + 1) * 16}px">
+      <div class="loading" style:color={fgMuted} style:padding-left="16px">
         Loading...
       </div>
     {:else}
@@ -97,6 +98,7 @@
         />
       {/each}
     {/if}
+    </div>
   {/if}
 {:else}
   <!-- File node -->
@@ -104,7 +106,8 @@
     class="tree-item file-item"
     class:active={isActiveFile(entry.path)}
     style:padding-left={paddingLeft}
-    style:color={isActiveFile(entry.path) ? fgColor : fgMuted}
+    style:color={fgColor}
+    style:opacity={isActiveFile(entry.path) ? 1 : 0.75}
     style:background-color={isActiveFile(entry.path) ? `${accentColor}22` : 'transparent'}
     onclick={() => handleFileClick(entry.path)}
     title={entry.path}
@@ -164,6 +167,10 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+  }
+
+  .indent-group {
+    border-left: 1px solid;
   }
 
   .loading {
