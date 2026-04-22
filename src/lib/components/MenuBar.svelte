@@ -100,7 +100,7 @@
 <div class="title-bar" style:background-color={bgColor} data-tauri-drag-region ondblclick={toggleMaximize}>
   <span class="title-text" style:opacity={windowFocused ? 0.9 : 0.55} data-tauri-drag-region>
     <img class="title-icon" src="/wstext-icon.png" alt="" width="14" height="14" style:opacity={windowFocused ? 1 : 0.5} />
-    <span style:color={windowFocused ? fgColor : fgMuted}>WSText</span>{#if activeFileName}<span style:color={fgMuted} style:opacity="0.5"> — </span><span style:color={windowFocused ? fgColor : fgMuted} style:opacity="0.7">{activeFileName}</span>{#if activeFilePath}<span style:color={fgMuted} style:opacity="0.35" class="title-path"> {activeFilePath.replace(/[\/][^\/]*$/, '')}</span>{/if}{/if}
+    <span style:color={windowFocused ? fgColor : fgMuted}>WSText</span>{#if activeFileName}<span style:color={fgMuted} style:opacity="0.5"> — </span><span style:color={windowFocused ? fgColor : fgMuted} style:opacity="0.7">{activeFileName}</span>{#if activeFilePath}<span style:color={fgMuted} style:opacity="0.55" class="title-path"> {activeFilePath.replace(/[\/][^\/]*$/, '')}</span>{/if}{/if}
   </span>
   <div class="title-window-controls">
     <button class="win-btn" onclick={minimizeWindow} aria-label="Minimize" title="Minimize" style:color={fgMuted}>
