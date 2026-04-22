@@ -1,5 +1,6 @@
 <script lang="ts">
   import { renderMarkdown } from '../markdown';
+  import { openUrl } from '@tauri-apps/plugin-opener';
 
   interface Props {
     source?: string;
@@ -41,13 +42,20 @@
     if (!anchor) return;
     const href = anchor.getAttribute('href');
     if (!href) return;
-    // Handle internal anchor links (#heading-id)
+
+    // Block ALL default link navigation (prevents webview from breaking)
+    e.preventDefault();
+
     if (href.startsWith('#')) {
-      e.preventDefault();
+      // Anchor link → scroll within preview
       const id = decodeURIComponent(href.slice(1));
       const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } else if (/^https?:\/\//.test(href)) {
+      // External URL → open in system browser
+      openUrl(href);
     }
+    // Relative links (README.ko.md etc.) → ignore (no navigation)
   }
 </script>
 
