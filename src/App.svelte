@@ -61,7 +61,7 @@
   let editorContainer: HTMLDivElement;
   let editor: monaco.editor.IStandaloneCodeEditor;
   let todoManager: TodoManager | null = null;
-  let fileWatcher: FileWatcher | null = null;
+  let fileWatcher = $state<FileWatcher | null>(null);
   let zoomCleanup: (() => void) | null = null;
   let eventAbort: AbortController | null = null;
   let suppressEditorContentSync = false;
