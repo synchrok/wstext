@@ -318,6 +318,8 @@
       }
 
       // Check for updates after UI is ready (non-blocking)
+      // Pre-warm dialog plugin to avoid first-call delay
+      import('@tauri-apps/plugin-dialog').catch(() => {});
       loadUpdateState().then(() => checkForUpdate());
     })();
 

@@ -29,8 +29,7 @@ function isMarkdownLanguage(language: string): boolean {
 function isRelevantWatchEvent(type: WatchEvent['type']): boolean {
   if (type === 'any') return true;
   if (type === 'other') return true;
-  if ('access' in type) return false;
-  if ('remove' in type) return false;
+  if (typeof type === 'object' && 'access' in type) return false;
   return true;
 }
 
@@ -168,6 +167,8 @@ export class FileWatcher {
         if (!shouldReload) return;
       }
 
+      // Small delay for atomic saves (write tmp → rename)
+      await new Promise(r => setTimeout(r, 100));
       const { content, encoding, hasBOM } = await readFileWithEncoding(latestTab.filePath);
       await this.options.onReload(tabId, {
         content: isMarkdownLanguage(latestTab.language) ? content : fileToDisplay(content),
