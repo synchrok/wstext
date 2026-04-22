@@ -218,6 +218,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'F92672' },
       { token: 'attribute.name', foreground: 'A6E22E' },
       { token: 'attribute.value', foreground: 'E6DB74' },
+          { token: 'string.key.json', foreground: 'F92672' },
+      { token: 'string.value.json', foreground: 'E6DB74' },
     ],
     colors: {
       'editor.background': '#272822',
@@ -253,6 +255,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'FF79C6' },
       { token: 'attribute.name', foreground: '50FA7B' },
       { token: 'attribute.value', foreground: 'F1FA8C' },
+          { token: 'string.key.json', foreground: '8BE9FD' },
+      { token: 'string.value.json', foreground: 'F1FA8C' },
     ],
     colors: {
       'editor.background': '#282A36',
@@ -289,7 +293,7 @@ export function registerAllThemes(): void {
       { token: 'attribute.name', foreground: 'D19A66' },
       { token: 'attribute.value', foreground: '98C379' },
       { token: 'string.key.json', foreground: '98C379' },
-      { token: 'string.value.json', foreground: 'E06C75' },
+      { token: 'string.value.json', foreground: 'D19A66' },
     ],
     colors: {
       'editor.background': '#282C34',
@@ -323,6 +327,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'CB4B16' },
       { token: 'attribute.name', foreground: '93A1A1' },
       { token: 'attribute.value', foreground: '2AA198' },
+          { token: 'string.key.json', foreground: '268BD2' },
+      { token: 'string.value.json', foreground: '2AA198' },
     ],
     colors: {
       'editor.background': '#002B36',
@@ -355,6 +361,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'CB4B16' },
       { token: 'attribute.name', foreground: '657B83' },
       { token: 'attribute.value', foreground: '2AA198' },
+          { token: 'string.key.json', foreground: '268BD2' },
+      { token: 'string.value.json', foreground: '2AA198' },
     ],
     colors: {
       'editor.background': '#FDF6E3',
@@ -387,6 +395,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'EC5F66' },
       { token: 'attribute.name', foreground: '5FB4B4' },
       { token: 'attribute.value', foreground: '99C794' },
+          { token: 'string.key.json', foreground: '5FB4B4' },
+      { token: 'string.value.json', foreground: '99C794' },
     ],
     colors: {
       'editor.background': '#303841',
@@ -420,6 +430,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'AC4142' },
       { token: 'attribute.name', foreground: '6A9FB5' },
       { token: 'attribute.value', foreground: '90A959' },
+          { token: 'string.key.json', foreground: '6A9FB5' },
+      { token: 'string.value.json', foreground: '90A959' },
     ],
     colors: {
       'editor.background': '#151515',
@@ -453,6 +465,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'EC5F67' },
       { token: 'attribute.name', foreground: '6699CC' },
       { token: 'attribute.value', foreground: '99C794' },
+          { token: 'string.key.json', foreground: '6699CC' },
+      { token: 'string.value.json', foreground: '99C794' },
     ],
     colors: {
       'editor.background': '#1B2B34',
@@ -486,6 +500,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'C33720' },
       { token: 'attribute.name', foreground: '3B5BB5' },
       { token: 'attribute.value', foreground: '3D8B37' },
+          { token: 'string.key.json', foreground: '3B5BB5' },
+      { token: 'string.value.json', foreground: '3D8B37' },
     ],
     colors: {
       'editor.background': '#FFFFFF',
@@ -519,6 +535,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: '800000' },
       { token: 'attribute.name', foreground: 'FF0000' },
       { token: 'attribute.value', foreground: '0000FF' },
+          { token: 'string.key.json', foreground: '795E26' },
+      { token: 'string.value.json', foreground: '0B7C0A' },
     ],
     colors: {
       'editor.background': '#FFFFFF',
@@ -552,6 +570,8 @@ export function registerAllThemes(): void {
       { token: 'tag', foreground: 'CC241D' },
       { token: 'attribute.name', foreground: '427B58' },
       { token: 'attribute.value', foreground: '79740E' },
+          { token: 'string.key.json', foreground: '076678' },
+      { token: 'string.value.json', foreground: '79740E' },
     ],
     colors: {
       'editor.background': '#FFF8F0',
