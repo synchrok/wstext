@@ -61,7 +61,7 @@
     onFileClick?.(filePath);
   }
 
-  let paddingLeft = $derived(`${8 + depth * 16}px`);
+  let paddingLeft = $derived(`${4 + depth * 8}px`);
 </script>
 
 {#if entry.isDirectory}
@@ -80,9 +80,9 @@
 
   <!-- Children -->
   {#if isFolderExpanded(entry.path)}
-    <div class="indent-group" style:margin-left="{8 + depth * 16 + 6}px" style:border-left-color="{fgMuted}33">
+    <div class="indent-group" style:margin-left="{4 + depth * 8 + 5}px" style:border-left-color="{fgMuted}33">
     {#if isLoading && children.length === 0}
-      <div class="loading" style:color={fgMuted} style:padding-left="16px">
+      <div class="loading" style:color={fgMuted} style:padding-left="8px">
         Loading...
       </div>
     {:else}
