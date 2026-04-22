@@ -293,7 +293,7 @@ export function registerAllThemes(): void {
       { token: 'attribute.name', foreground: 'D19A66' },
       { token: 'attribute.value', foreground: '98C379' },
       { token: 'string.key.json', foreground: '98C379' },
-      { token: 'string.value.json', foreground: 'D19A66' },
+      { token: 'string.value.json', foreground: 'E5C07B' },
     ],
     colors: {
       'editor.background': '#282C34',
