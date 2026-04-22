@@ -88,6 +88,8 @@ export interface AppSettings {
   checkboxEnabled: boolean;
   /** Whether [v] is also recognized as checked (in addition to [x]) */
   supportBracketV: boolean;
+  /** Whether to convert ☐/☑ to [ ]/[x] when copying */
+  copyCheckboxAsBrackets: boolean;
   /** Whether the folder sidebar is visible. */
   sidebarVisible: boolean;
   /** Width of the folder sidebar in pixels. */
@@ -141,6 +143,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   minimap: true,
   checkboxEnabled: true,
   supportBracketV: true,
+  copyCheckboxAsBrackets: true,
   sidebarVisible: false,
   sidebarWidth: 220,
   sidebarRoots: [],

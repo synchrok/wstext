@@ -9,9 +9,14 @@ const DISPLAY_TODO_REGEX = /[☐☑]/g;
 
 /** Whether [v] is also recognized as checked */
 let _supportV = true;
+let _copyAsBrackets = true;
 
 export function setSupportBracketV(enabled: boolean): void {
   _supportV = enabled;
+}
+
+export function setCopyCheckboxAsBrackets(enabled: boolean): void {
+  _copyAsBrackets = enabled;
 }
 
 /** Build the file-format regex based on current settings */
@@ -86,24 +91,17 @@ export class TodoManager {
       run: () => this.toggleLines(),
     });
 
-    // Intercept copy/cut → convert ☐/☑ back to [ ]/[x] in clipboard
-    const copyHandler = (e: ClipboardEvent) => {
-      const model = this.editor.getModel();
-      if (!model) return;
-      const selection = this.editor.getSelection();
-      let text: string;
-      if (!selection || selection.isEmpty()) {
-        // No selection → Ctrl+C copies entire current line
-        const pos = this.editor.getPosition();
-        if (!pos) return;
-        text = model.getLineContent(pos.lineNumber) + model.getEOL();
-      } else {
-        text = model.getValueInRange(selection);
-      }
-      if (text.includes(UNCHECKED) || text.includes(CHECKED)) {
-        e.preventDefault();
-        e.clipboardData?.setData('text/plain', displayToFile(text));
-      }
+    // Intercept copy/cut at window level (capture phase) to override Monaco's clipboard
+    const copyHandler = async () => {
+      if (!_copyAsBrackets) return;
+      // Wait a tick for Monaco to write to clipboard first
+      await new Promise(r => setTimeout(r, 10));
+      try {
+        const clipText = await navigator.clipboard.readText();
+        if (clipText.includes(UNCHECKED) || clipText.includes(CHECKED)) {
+          await navigator.clipboard.writeText(displayToFile(clipText));
+        }
+      } catch {}
     };
     const editorDom = this.editor.getDomNode();
     if (editorDom) {

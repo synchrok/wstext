@@ -11,6 +11,7 @@
       minimap: boolean;
       checkboxEnabled: boolean;
       supportBracketV: boolean;
+      copyCheckboxAsBrackets: boolean;
       excludedExtensions: string[];
     };
     bgColor?: string;
@@ -111,6 +112,7 @@
     if (localSettings.minimap !== settings.minimap) changes.minimap = localSettings.minimap;
     if (localSettings.checkboxEnabled !== settings.checkboxEnabled) changes.checkboxEnabled = localSettings.checkboxEnabled;
     if (localSettings.supportBracketV !== settings.supportBracketV) changes.supportBracketV = localSettings.supportBracketV;
+    if (localSettings.copyCheckboxAsBrackets !== settings.copyCheckboxAsBrackets) changes.copyCheckboxAsBrackets = localSettings.copyCheckboxAsBrackets;
     
     // Check font settings
     const fontParts: string[] = [];
@@ -241,6 +243,17 @@
               <label class="toggle">
                 <input type="checkbox" bind:checked={localSettings.supportBracketV} />
                 <span class="slider" style:background-color={localSettings.supportBracketV ? accentColor : borderColor}></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-title">Copy checkbox as [ ]</div>
+                <div class="setting-desc" style:color={fgMuted}>Convert ☐/☑ to [ ]/[x] when copying text</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" bind:checked={localSettings.copyCheckboxAsBrackets} />
+                <span class="slider" style:background-color={localSettings.copyCheckboxAsBrackets ? accentColor : borderColor}></span>
               </label>
             </div>
 
