@@ -69,7 +69,7 @@ md.core.ruler.push('heading_anchors', (state) => {
           .toLowerCase()
           .trim()
           .replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ\u3400-\u9FFF-]/g, '')
-          .replace(/\s+/g, '-')
+          .replace(/ /g, '-')
           .replace(/^-|-$/g, '');
         // Handle duplicates
         const count = slugCounts.get(slug) || 0;

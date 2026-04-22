@@ -44,8 +44,8 @@
     // Handle internal anchor links (#heading-id)
     if (href.startsWith('#')) {
       e.preventDefault();
-      const container = (e.currentTarget as HTMLElement);
-      const el = container.querySelector(href);
+      const id = href.slice(1);
+      const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
   }
