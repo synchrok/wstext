@@ -42,7 +42,7 @@
   } from './lib/zoom';
   import { formatDocument } from './lib/formatting';
   import { setLanguage, getLanguageDisplayName } from './lib/languageOverride';
-  import { TodoManager, injectTodoStyles, setSupportBracketV, setCopyCheckboxAsBrackets } from './lib/todo';
+  import { TodoManager, injectTodoStyles, setSupportBracketV, setCopyAsCheckbox } from './lib/todo';
   import { FileWatcher } from './lib/fileWatcher.svelte';
   import { updateState, checkForUpdate, installUpdate, dismissVersion, loadUpdateState } from './lib/stores/updater.svelte';
   import type { Encoding } from './lib/types';
@@ -114,7 +114,7 @@
       registerAllThemes();
       injectTodoStyles();
       setSupportBracketV(appSettings.supportBracketV);
-    setCopyCheckboxAsBrackets(appSettings.copyCheckboxAsBrackets);
+    setCopyAsCheckbox(appSettings.copyAsCheckbox);
 
       // Create Monaco editor
       editor = monaco.editor.create(editorContainer, {
@@ -781,7 +781,7 @@
         checkboxEnabled: appSettings.checkboxEnabled,
         supportBracketV: appSettings.supportBracketV,
         excludedExtensions: appSettings.excludedExtensions,
-        copyCheckboxAsBrackets: appSettings.copyCheckboxAsBrackets,
+        copyAsCheckbox: appSettings.copyAsCheckbox,
       }}
       bgColor={themeColors.bgSecondary}
       fgColor={themeColors.fgPrimary}

@@ -9,14 +9,14 @@ const DISPLAY_TODO_REGEX = /[☐☑]/g;
 
 /** Whether [v] is also recognized as checked */
 let _supportV = true;
-let _copyAsBrackets = true;
+let _copyAsCheckbox = false;
 
 export function setSupportBracketV(enabled: boolean): void {
   _supportV = enabled;
 }
 
-export function setCopyCheckboxAsBrackets(enabled: boolean): void {
-  _copyAsBrackets = enabled;
+export function setCopyAsCheckbox(enabled: boolean): void {
+  _copyAsCheckbox = enabled;
 }
 
 /** Build the file-format regex based on current settings */
@@ -91,27 +91,33 @@ export class TodoManager {
       run: () => this.toggleLines(),
     });
 
-    // Intercept copy/cut at window level (capture phase) to override Monaco's clipboard
-    const copyHandler = async () => {
-      if (!_copyAsBrackets) return;
-      // Wait a tick for Monaco to write to clipboard first
-      await new Promise(r => setTimeout(r, 10));
-      try {
-        const clipText = await navigator.clipboard.readText();
-        if (clipText.includes(UNCHECKED) || clipText.includes(CHECKED)) {
-          await navigator.clipboard.writeText(displayToFile(clipText));
-        }
-      } catch {}
+    // Intercept copy/cut on document capture phase — runs BEFORE Monaco's handler
+    const copyHandler = (e: ClipboardEvent) => {
+      if (_copyAsCheckbox) return; // setting ON = keep ☐/☑ as-is
+      const model = this.editor.getModel();
+      if (!model) return;
+      // Check if this editor is focused
+      if (!this.editor.hasTextFocus()) return;
+      const selection = this.editor.getSelection();
+      let text: string;
+      if (!selection || selection.isEmpty()) {
+        const pos = this.editor.getPosition();
+        if (!pos) return;
+        text = model.getLineContent(pos.lineNumber) + model.getEOL();
+      } else {
+        text = model.getValueInRange(selection);
+      }
+      if (text.includes(UNCHECKED) || text.includes(CHECKED)) {
+        e.preventDefault();
+        e.clipboardData?.setData('text/plain', displayToFile(text));
+      }
     };
-    const editorDom = this.editor.getDomNode();
-    if (editorDom) {
-      editorDom.addEventListener('copy', copyHandler as EventListener);
-      editorDom.addEventListener('cut', copyHandler as EventListener);
-    }
+    document.addEventListener('copy', copyHandler as EventListener, true);
+    document.addEventListener('cut', copyHandler as EventListener, true);
 
     this.disposables.push(contentDisposable, mouseDisposable, keyDisposable, toggleAction);
     // Store DOM ref for cleanup
-    this._editorDom = editorDom;
+    this._editorDom = null;
     this._copyHandler = copyHandler as EventListener;
 
     // Initial decoration pass
@@ -321,9 +327,9 @@ export class TodoManager {
   }
 
   dispose(): void {
-    if (this._editorDom && this._copyHandler) {
-      this._editorDom.removeEventListener('copy', this._copyHandler);
-      this._editorDom.removeEventListener('cut', this._copyHandler);
+    if (this._copyHandler) {
+      document.removeEventListener('copy', this._copyHandler, true);
+      document.removeEventListener('cut', this._copyHandler, true);
     }
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
     this.disposables.forEach(d => d.dispose());
