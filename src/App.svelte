@@ -826,6 +826,9 @@
         if (changes.supportBracketV !== undefined) {
           setSupportBracketV(changes.supportBracketV);
         }
+        if (changes.copyAsCheckbox !== undefined) {
+          setCopyAsCheckbox(changes.copyAsCheckbox);
+        }
         if (changes.excludedExtensions !== undefined) {
           import('./lib/stores/folders.svelte').then(({ setExcludedExtensions }) => {
             setExcludedExtensions(changes.excludedExtensions);
