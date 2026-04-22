@@ -388,6 +388,8 @@ export function injectTodoStyles(): void {
     .todo-unchecked { color: #4fc3f7 !important; cursor: pointer; margin-right: 0.25em; }
     .todo-checked { color: #66bb6a !important; cursor: pointer; margin-right: 0.25em; }
     .todo-checked-text { opacity: 0.4; }
+    .monaco-editor .margin { user-select: none; -webkit-user-select: none; }
+    .monaco-editor .line-numbers { user-select: none; -webkit-user-select: none; pointer-events: none; }
   `;
   document.head.appendChild(style);
 }
