@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import * as monaco from 'monaco-editor';
-  import { message } from '@tauri-apps/plugin-dialog';
+  import { ask, confirm } from '@tauri-apps/plugin-dialog';
 
   // Lib imports
   import { registerAllThemes, setTheme, getThemeColors, LIGHT_THEMES } from './lib/themes';
@@ -422,14 +422,14 @@
     if (!tab) return true;
 
     if (tab.isDirty) {
-      const result = await message('저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?', {
+      const shouldSave = await ask('저장하지 않은 변경사항이 있습니다.\n저장하시겠습니까?', {
         title: tab.title,
         kind: 'warning',
-        buttons: 'YesNoCancel',
+        okLabel: '저장',
+        cancelLabel: '저장 안 함',
       });
 
-      if (result === 'Cancel') return false;
-      if (result === 'Yes') {
+      if (shouldSave) {
         const saved = await saveTabById(tabId);
         if (!saved) return false;
       }
