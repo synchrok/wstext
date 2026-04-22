@@ -35,6 +35,8 @@
         { "path": "F:/**" }
       ]
     },
+    "fs:allow-watch",
+    "fs:allow-unwatch",
     "updater:default",
     "process:allow-restart"
   ]
