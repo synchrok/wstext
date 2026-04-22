@@ -10,11 +10,11 @@
 
 <p align="center">
   Built with Tauri v2 + Svelte 5 + Monaco Editor.<br/>
-  Inspired by Sublime Text ??only the essentials, nothing more.
+  Inspired by Sublime Text — only the essentials, nothing more.
 </p>
 
 <p align="center">
-  <a href="README.ko.md">?�국??/a>
+  <a href="README.ko.md">한국어</a>
 </p>
 
 ---
@@ -29,11 +29,11 @@
 - Auto-detect file encoding (UTF-8, UTF-16 LE/BE, Latin-1)
 
 **Native Todo Checkboxes**
-- Type `[]` and it becomes a checkbox `??
-- Click or `Ctrl+Enter` to toggle checked `??
+- Type `[]` and it becomes a checkbox `☐`
+- Click or `Ctrl+Enter` to toggle checked `☑`
 - Checked items turn semi-transparent
 - Multi-line select + `Ctrl+Enter` toggles all at once
-- Saved as standard `[ ]` / `[x]` in files ??compatible everywhere
+- Saved as standard `[ ]` / `[x]` in files — compatible everywhere
 
 **Markdown Preview**
 - Split view: editor + live preview side by side
@@ -90,7 +90,7 @@ npm run tauri build
 
 ## Roadmap
 
-- [x] Project mode ??manage multiple files and folders
+- [x] Project mode — manage multiple files and folders
 - [ ] Plugin system
 - [ ] Linux support
 
