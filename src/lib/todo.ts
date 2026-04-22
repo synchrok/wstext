@@ -91,20 +91,63 @@ export class TodoManager {
       run: () => this.toggleLines(),
     });
 
-    // Monkey-patch navigator.clipboard.writeText to convert checkboxes
-    // Monaco uses Clipboard API directly, bypassing DOM copy events entirely
-    if (!(navigator.clipboard as any)._origWriteText) {
-      const orig = navigator.clipboard.writeText.bind(navigator.clipboard);
-      (navigator.clipboard as any)._origWriteText = orig;
-      navigator.clipboard.writeText = async (text: string) => {
-        if (!_copyAsCheckbox && (text.includes(UNCHECKED) || text.includes(CHECKED))) {
-          return orig(displayToFile(text));
-        }
-        return orig(text);
-      };
-    }
+    // Override Ctrl+C / Ctrl+X to convert ☐/☑ → [ ]/[x]
+    const getTextForClipboard = (): string | null => {
+      const model = this.editor.getModel();
+      if (!model) return null;
+      const selection = this.editor.getSelection();
+      let text: string;
+      if (!selection || selection.isEmpty()) {
+        const pos = this.editor.getPosition();
+        if (!pos) return null;
+        text = model.getLineContent(pos.lineNumber) + model.getEOL();
+      } else {
+        text = model.getValueInRange(selection);
+      }
+      if (!_copyAsCheckbox && (text.includes(UNCHECKED) || text.includes(CHECKED))) {
+        return displayToFile(text);
+      }
+      return null;
+    };
 
-    this.disposables.push(contentDisposable, mouseDisposable, keyDisposable, toggleAction);
+    const copyOverride = editor.addAction({
+      id: 'wstext.copy',
+      label: 'Copy',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC],
+      run: () => {
+        const converted = getTextForClipboard();
+        if (converted) {
+          navigator.clipboard.writeText(converted);
+        } else {
+          editor.trigger('wstext', 'editor.action.clipboardCopyAction', null);
+        }
+      },
+    });
+
+    const cutOverride = editor.addAction({
+      id: 'wstext.cut',
+      label: 'Cut',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX],
+      run: () => {
+        const converted = getTextForClipboard();
+        if (converted) {
+          navigator.clipboard.writeText(converted);
+          // Delete the selection or current line
+          const selection = editor.getSelection();
+          if (selection && !selection.isEmpty()) {
+            editor.executeEdits('wstext.cut', [{ range: selection, text: '' }]);
+          } else {
+            editor.trigger('wstext', 'editor.action.deleteAllLeft', null);
+            editor.trigger('wstext', 'editor.action.deleteAllRight', null);
+            editor.trigger('wstext', 'editor.action.joinLines', null);
+          }
+        } else {
+          editor.trigger('wstext', 'editor.action.clipboardCutAction', null);
+        }
+      },
+    });
+
+    this.disposables.push(contentDisposable, mouseDisposable, keyDisposable, toggleAction, copyOverride, cutOverride);
     this._editorDom = null;
     this._copyHandler = null;
 
@@ -315,9 +358,7 @@ export class TodoManager {
   }
 
   dispose(): void {
-    if ((navigator.clipboard as any)._origWriteText) {
-      navigator.clipboard.writeText = (navigator.clipboard as any)._origWriteText;
-      delete (navigator.clipboard as any)._origWriteText;
+    if (false) {
     }
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
     this.disposables.forEach(d => d.dispose());
