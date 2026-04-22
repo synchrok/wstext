@@ -39,7 +39,7 @@ hljs.registerLanguage('sh', bash);
  */
 const md = new MarkdownIt({
   html: true,        // GitHub Flavored Markdown supports inline HTML
-  linkify: true,
+  linkify: false,
   typographer: true,
   highlight(str: string, lang: string): string {
     if (lang && hljs.getLanguage(lang)) {

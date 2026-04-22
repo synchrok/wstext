@@ -47,13 +47,20 @@ export class TodoManager {
     return lang === 'markdown' || lang === 'mdx';
   }
 
+  /** Only plaintext files should have checkbox auto-conversion */
+  private shouldConvertCheckboxes(): boolean {
+    const model = this.editor.getModel();
+    if (!model) return false;
+    return model.getLanguageId() === 'plaintext';
+  }
+
   constructor(editor: monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
 
     // On content change: auto-convert any [] or [ ] or [x] typed by user → ☐/☑
     const contentDisposable = editor.onDidChangeModelContent(() => {
       if (this.isReplacing) return;
-      if (this.isMarkdown()) return; // md files use standard [ ]/[x] syntax
+      if (!this.shouldConvertCheckboxes()) return;
       this.autoReplace();
       this.refreshDecorations();
     });
