@@ -19,6 +19,13 @@ export function setupKeyboardShortcuts(signal?: AbortSignal): void {
       return;
     }
 
+    // Ctrl+Shift+N — new window
+    if (ctrl && (e.key === 'N' || e.key === 'n') && e.shiftKey) {
+      e.preventDefault();
+      emit('wstext:new-window');
+      return;
+    }
+
     // Ctrl+O — open file
     if (ctrl && e.key === 'o' && !e.shiftKey) {
       e.preventDefault();

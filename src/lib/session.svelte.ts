@@ -7,10 +7,24 @@ import { SESSION_VERSION } from './types';
 import { tabStore } from './stores/tabs.svelte';
 import { displayToFile, fileToDisplay } from './todo';
 import { atomicWriteText } from './utils/atomicWrite';
+import {
+  MAIN_WINDOW_LABEL,
+  getWindowLabel,
+  isMainWindow,
+  isAdoptWindow,
+  removeFromManifest,
+} from './multiWindow';
 
-const SENTINEL_FILE = '.wstext-running';
-const SESSION_STORE_KEY = 'session';
+const LEGACY_SESSION_KEY = 'session';
 const BACKUP_DIR = 'backups';
+
+function getSessionKey(): string {
+  return `session:${getWindowLabel()}`;
+}
+
+function getSentinelPath(): string {
+  return `.wstext-running-${getWindowLabel()}`;
+}
 
 /** Session status state — wrapped in object to avoid Svelte 5 export-reassignment restriction */
 export const sessionStatus = $state({
@@ -52,25 +66,28 @@ export async function initSession(): Promise<void> {
     // Non-critical — proceed anyway
   }
 
-  // Check for crash sentinel
+  // Check for crash sentinel (per-window)
+  const sentinelPath = getSentinelPath();
   try {
-    const sentinelExists = await exists(SENTINEL_FILE, { baseDir: BaseDirectory.AppData });
+    const sentinelExists = await exists(sentinelPath, { baseDir: BaseDirectory.AppData });
     sessionStatus.wasCrash = sentinelExists;
   } catch {
     sessionStatus.wasCrash = false;
   }
 
-  // Restore session
+  // Restore session — skip entirely for adoption windows (they receive a tab via emit)
   sessionStatus.isRestoring = true;
   try {
-    await restoreSession();
+    if (!isAdoptWindow()) {
+      await restoreSession();
+    }
   } finally {
     sessionStatus.isRestoring = false;
   }
 
   // Write sentinel (marks that we're running)
   try {
-    await writeTextFile(SENTINEL_FILE, new Date().toISOString(), {
+    await writeTextFile(sentinelPath, new Date().toISOString(), {
       baseDir: BaseDirectory.AppData,
     });
   } catch {
@@ -101,7 +118,22 @@ export async function initSession(): Promise<void> {
 async function restoreSession(): Promise<void> {
   try {
     const store = await getStore();
-    const saved = await store.get<SessionState>(SESSION_STORE_KEY);
+    const sessionKey = getSessionKey();
+    let saved = await store.get<SessionState>(sessionKey);
+
+    // Migration: the main window adopts the legacy `session` key if present
+    // and its own `session:main` key doesn't exist yet. Preserves existing users.
+    if ((!saved || !saved.tabs?.length) && isMainWindow()) {
+      const legacy = await store.get<SessionState>(LEGACY_SESSION_KEY);
+      if (legacy && legacy.version === SESSION_VERSION && legacy.tabs?.length) {
+        saved = legacy;
+        // Re-save under the new key so we only migrate once.
+        try {
+          await store.set(sessionKey, legacy);
+          await store.save();
+        } catch { /* non-critical */ }
+      }
+    }
 
     if (!saved || saved.version !== SESSION_VERSION || !saved.tabs.length) {
       return; // No session or schema mismatch — fresh start
@@ -185,7 +217,7 @@ function buildSessionState(): SessionState {
 export async function saveSessionMetadata(): Promise<void> {
   try {
     const store = await getStore();
-    await store.set(SESSION_STORE_KEY, buildSessionState());
+    await store.set(getSessionKey(), buildSessionState());
     await store.save();
   } catch {
     // Non-critical — auto-save will retry
@@ -261,10 +293,44 @@ async function handleCleanExit(): Promise<void> {
       }
     }
 
-    // Remove sentinel (marks clean exit)
-    await remove(SENTINEL_FILE, { baseDir: BaseDirectory.AppData });
+    // Remove sentinel (marks clean exit) — per-window
+    await remove(getSentinelPath(), { baseDir: BaseDirectory.AppData });
   } catch {
     // Non-critical — exit anyway
+  }
+
+  // Secondary windows drop themselves from the manifest so they won't be
+  // recreated on the next startup. The main window never removes itself.
+  try {
+    if (!isMainWindow()) {
+      await removeFromManifest(getWindowLabel());
+    }
+  } catch {
+    /* non-critical */
+  }
+}
+
+/**
+ * Restore any secondary windows recorded in the window manifest.
+ * ONLY call from the main window at startup. Each created window will
+ * run its own `initSession()` and pull its own `session:{label}` key.
+ */
+export async function restoreSecondaryWindowsFromManifest(): Promise<void> {
+  if (!isMainWindow()) return;
+  try {
+    const { readManifest, createNewWindow } = await import('./multiWindow');
+    const manifest = await readManifest();
+    for (const entry of manifest.windows) {
+      if (entry.label === MAIN_WINDOW_LABEL) continue;
+      try {
+        await createNewWindow({ label: entry.label, focus: false });
+      } catch {
+        // If restore fails for one window, skip it but keep manifest intact —
+        // user can try again next relaunch.
+      }
+    }
+  } catch {
+    /* non-critical */
   }
 }
 

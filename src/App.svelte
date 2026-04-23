@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import * as monaco from 'monaco-editor';
   import { ask, confirm } from '@tauri-apps/plugin-dialog';
 
@@ -45,7 +45,22 @@
   import { TodoManager, injectTodoStyles, setSupportBracketV, setCopyAsCheckbox } from './lib/todo';
   import { FileWatcher } from './lib/fileWatcher.svelte';
   import { updateState, checkForUpdate, installUpdate, dismissVersion, loadUpdateState } from './lib/stores/updater.svelte';
-  import type { Encoding } from './lib/types';
+  import {
+    createNewWindow,
+    handOffTabToNewWindow,
+    sendTabToExistingWindow,
+    getOtherWindowBounds,
+    findWindowAt,
+    onAdoptTab,
+    announceReady,
+    isMainWindow,
+    isAdoptWindow,
+    MW_EVENTS,
+    ADOPT_FALLBACK_TIMEOUT_MS,
+  } from './lib/multiWindow';
+  import { listen } from '@tauri-apps/api/event';
+  import { setSuppressBroadcast } from './lib/stores/settings.svelte';
+  import type { Encoding, AppSettings, TabState } from './lib/types';
 
   // Components
   import MenuBar from './lib/components/MenuBar.svelte';
@@ -77,6 +92,60 @@
   let notificationTimer: ReturnType<typeof setTimeout> | undefined;
   let splitPercent = $state(50);
   let previewOriginalTheme = $state<string | null>(null);
+  const adoptWindow = isAdoptWindow();
+  const mainWindow = isMainWindow();
+  let adoptReceived = false;
+  // Buffer of adoption payloads received before the editor is ready.
+  // Flushed once Monaco is created.
+  let pendingAdoptedTabs: TabState[] = [];
+  let editorReady = false;
+
+  // Kick off the adoption handshake immediately (before Monaco loads).
+  // This lets the source window deliver the tab payload in parallel with
+  // our Monaco bootstrap instead of waiting for it to finish.
+  let earlyAdoptUnlisten: (() => void) | null = null;
+  if (typeof window !== 'undefined') {
+    void (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        earlyAdoptUnlisten = await listen<{ tabData: TabState }>(MW_EVENTS.ADOPT_TAB, (evt) => {
+          if (!evt.payload?.tabData) return;
+          adoptReceived = true;
+          if (editorReady) {
+            adoptIntoEditor(evt.payload.tabData);
+          } else {
+            pendingAdoptedTabs.push(evt.payload.tabData);
+          }
+        });
+        // Announce readiness right away — the source's emit can now land
+        // even before Monaco has mounted.
+        if (adoptWindow) {
+          void announceReady();
+        }
+      } catch (err) {
+        console.warn('[app] early adopt listener failed:', err);
+      }
+    })();
+  }
+
+  function adoptIntoEditor(tabData: TabState): void {
+    if (!editor) return;
+    // Strip the incoming id — openTab assigns a fresh one so Monaco model
+    // URIs don't clash with anything restored from session.
+    const { id: _drop, ...rest } = tabData;
+    const newId = openTab(rest as Omit<TabState, 'id'>);
+    switchTab(editor, newId);
+    // Make sure the receiving window comes to the foreground.
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const w = getCurrentWindow();
+        await w.show().catch(() => {});
+        await w.unminimize().catch(() => {});
+        await w.setFocus().catch(() => {});
+      } catch { /* non-critical */ }
+    })();
+  }
   let sidebarWidth = $derived(appSettings.sidebarWidth);
   let sidebarVisible = $derived(appSettings.sidebarVisible);
 
@@ -225,6 +294,10 @@
       window.addEventListener(MENU_EVENTS.ABOUT, () => (showAbout = true), sig);
       window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
       window.addEventListener('wstext:prev-tab', () => prevTab(editor), sig);
+      window.addEventListener('wstext:new-window', async () => {
+        try { await createNewWindow({ focus: true }); }
+        catch (err) { console.warn('[app] new window failed:', err); }
+      }, sig);
       window.addEventListener('wstext:tab-saved-as', (e) => {
         const { tabId, newPath } = (e as CustomEvent).detail;
         const fileName = newPath.split(/[/\\]/).pop() ?? newPath;
@@ -297,10 +370,75 @@
         await initSession();
       }
 
-      // Always start with at least one blank tab
-      if (tabStore.tabs.length === 0) {
+      // Main window: after self-restore, recreate any secondary windows from manifest.
+      if (mainWindow && !adoptWindow) {
+        try {
+          const { restoreSecondaryWindowsFromManifest } = await import('./lib/session.svelte');
+          await restoreSecondaryWindowsFromManifest();
+        } catch (err) { console.warn('[app] secondary restore failed:', err); }
+      }
+
+      // Mark editor ready and flush any adoption payloads that arrived early.
+      // (The early listener was registered before Monaco finished booting.)
+      editorReady = true;
+      for (const buffered of pendingAdoptedTabs) {
+        adoptIntoEditor(buffered);
+      }
+      pendingAdoptedTabs = [];
+      ac.signal.addEventListener('abort', () => earlyAdoptUnlisten?.());
+
+      if (adoptWindow) {
+        // Re-announce in case the source listener only registered after our
+        // first announceReady (race protection, cheap broadcast).
+        void announceReady();
+        // Reveal the window now that the editor is mounted.
+        void (async () => {
+          try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            await getCurrentWindow().show().catch(() => {});
+          } catch { /* non-critical */ }
+        })();
+        setTimeout(() => {
+          if (!adoptReceived && tabStore.tabs.length === 0) {
+            newFile();
+          }
+        }, ADOPT_FALLBACK_TIMEOUT_MS);
+      } else if (tabStore.tabs.length === 0) {
+        // Normal windows always start with at least one blank tab.
         newFile();
       }
+
+      // Non-main, non-adopt windows (restored secondaries) also need an
+      // explicit show() since we launch them hidden to avoid FOUC.
+      if (!adoptWindow && !mainWindow) {
+        void (async () => {
+          try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            await getCurrentWindow().show().catch(() => {});
+          } catch { /* non-critical */ }
+        })();
+      }
+
+      // Cross-window settings sync: apply changes coming from other windows
+      // without re-broadcasting them.
+      const unlistenSettings = await listen<{ source: string; changes: Partial<AppSettings> }>(
+        MW_EVENTS.SETTINGS_CHANGED,
+        ({ payload }) => {
+          if (!payload || payload.source === undefined) return;
+          // Ignore our own echo.
+          const myLabel = (async () => (await import('./lib/multiWindow')).getWindowLabel())();
+          void myLabel.then((label) => {
+            if (payload.source === label) return;
+            setSuppressBroadcast(true);
+            try {
+              Object.assign(appSettings, payload.changes);
+            } finally {
+              setSuppressBroadcast(false);
+            }
+          });
+        }
+      );
+      ac.signal.addEventListener('abort', () => unlistenSettings());
 
       // After session restore: switch editor to the active tab's model + refresh decorations
       if (tabStore.activeTabId) {
@@ -319,8 +457,14 @@
         todoManager?.refreshDecorations();
       }
 
-      // Check for updates after UI is ready (non-blocking)
-      loadUpdateState().then(() => checkForUpdate());
+      // Check for updates after UI is ready (non-blocking).
+      // Only the main window runs the check — secondary windows share the store but
+      // must not display duplicate notifications.
+      if (mainWindow) {
+        loadUpdateState().then(() => checkForUpdate());
+      } else {
+        void loadUpdateState();
+      }
     })();
 
     return () => {
@@ -451,6 +595,109 @@
     const closed = await requestCloseTab(tabId);
     if (closed) {
       ensureBlankTabIfNeeded();
+    }
+  }
+
+  async function handleTabDragOut(tabId: string, screenX: number, screenY: number): Promise<void> {
+    const tab = getTabById(tabId);
+    if (!tab) return;
+
+    // Snapshot a detached copy of the tab. Guard against disposed models
+    // (can happen if the tab was closed mid-drag).
+    let latestContent = tab.content;
+    try {
+      const model = getTabModel(tabId);
+      if (tabId === activeTabId && editor) {
+        latestContent = editor.getValue();
+      } else if (model && !model.isDisposed()) {
+        latestContent = model.getValue();
+      }
+    } catch {
+      // Fall back to cached content from the tab state.
+    }
+
+    const tabCopy: TabState = {
+      ...tab,
+      content: latestContent,
+    };
+
+    // Decide: drop into an existing window, or spawn a new one?
+    let targetLabel: string | null = null;
+    try {
+      const others = await getOtherWindowBounds();
+      const hit = findWindowAt(screenX, screenY, others);
+      if (hit) targetLabel = hit.label;
+    } catch {
+      // If bounds query fails, fall back to new-window behaviour.
+    }
+
+    try {
+      if (targetLabel) {
+        // Drag-in: send to the existing window. Show a hint so the user knows
+        // what happened when the window may be obscured.
+        await sendTabToExistingWindow(targetLabel, tabCopy);
+      } else {
+        showNotif({ message: 'Opening new window…', type: 'info' });
+        await handOffTabToNewWindow(tabCopy, {
+          position: { x: Math.max(0, screenX - 60), y: Math.max(0, screenY - 20) },
+        });
+      }
+
+      // Only remove from source AFTER the payload is delivered/emitted.
+      // This avoids disposing the model before we've read its content.
+      closeTab(editor, tabId);
+
+      // Let Svelte flush the reactive update so the tab bar + title bar
+      // reflect the new active tab before any follow-up work.
+      await tick();
+
+      // Explicitly switch to the new active tab. closeTab already swaps the
+      // editor's model, but we also want cursor/scroll restoration and
+      // decoration refresh to happen via our normal switchTab path.
+      if (tabStore.activeTabId) {
+        switchTab(editor, tabStore.activeTabId);
+        todoManager?.refreshDecorations();
+      }
+
+      // If this is a secondary window and we're now empty, close the window
+      // instead of spawning a blank tab. This mirrors VS Code / browser tab
+      // drag-out behaviour: dragging the last tab out closes the source window.
+      //
+      // We use destroy() directly (skipping onCloseRequested's session save)
+      // because:
+      //   1. The window has no tabs left — no user data to save.
+      //   2. close() goes through onCloseRequested, which does async IO
+      //      (saveSessionMetadata) and sometimes never reaches destroy() if
+      //      another window is concurrently writing the same store.
+      // We also drop ourselves from the manifest so a relaunch won't recreate
+      // an empty window.
+      if (tabStore.tabs.length === 0 && !mainWindow) {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const { removeFromManifest } = await import('./lib/multiWindow');
+          const w = getCurrentWindow();
+          await removeFromManifest(w.label).catch(() => {});
+          // Remove any stale sentinel for this window so startup won't flag
+          // a false crash next time.
+          try {
+            const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+            await remove(`.wstext-running-${w.label}`, { baseDir: BaseDirectory.AppData })
+              .catch(() => {});
+          } catch { /* ignore */ }
+          await w.destroy();
+        } catch (err) {
+          console.warn('[app] destroy failed, falling back to blank tab:', err);
+          ensureBlankTabIfNeeded();
+        }
+        return;
+      }
+
+      ensureBlankTabIfNeeded();
+    } catch (err) {
+      showNotif({
+        message: `Drag-out failed: ${err instanceof Error ? err.message : String(err)}`,
+        type: 'error',
+      });
     }
   }
 
@@ -654,6 +901,7 @@
       const tab = tabStore.tabs.splice(from, 1)[0];
       tabStore.tabs.splice(to, 0, tab);
     }}
+    onTabDragOut={(id, x, y) => { void handleTabDragOut(id, x, y); }}
   />
 
   <!-- Main content area (sidebar + editor) -->
@@ -860,7 +1108,7 @@
   {/if}
 
   <UpdateNotification
-    visible={updateState.availableVersion !== null && !updateState.checking}
+    visible={mainWindow && updateState.availableVersion !== null && !updateState.checking}
     isPortable={updateState.isPortable}
     version={updateState.availableVersion ?? ''}
     updateUrl={updateState.updateUrl ?? ''}

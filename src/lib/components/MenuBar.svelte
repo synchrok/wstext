@@ -75,17 +75,26 @@
   }
 
   async function closeWindow() {
+    // Multi-window friendly: close only THIS window. Session save runs inside
+    // `onCloseRequested` (session.svelte.ts). Tauri shuts down the process
+    // automatically once the last window is destroyed.
     try {
-      // Save session first
-      const { saveSessionMetadata } = await import('../session.svelte');
-      await Promise.race([
-        saveSessionMetadata(),
-        new Promise(r => setTimeout(r, 1500)), // 1.5s timeout
-      ]);
-    } catch { /* proceed to exit */ }
-    // Kill process directly — most reliable way to close in Tauri
-    const { exit } = await import('@tauri-apps/plugin-process');
-    await exit(0);
+      await getCurrentWindow().close();
+    } catch {
+      // Fallback: if close() fails, kill the whole process.
+      const { exit } = await import('@tauri-apps/plugin-process');
+      await exit(0);
+    }
+  }
+
+  async function newWindow() {
+    closeMenu();
+    try {
+      const { createNewWindow } = await import('../multiWindow');
+      await createNewWindow({ focus: true });
+    } catch (err) {
+      console.warn('[menu] Failed to open new window:', err);
+    }
   }
 </script>
 
@@ -131,6 +140,9 @@
         <div class="dropdown" style:background-color={bgColor} style:border-color={borderColor}>
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.NEW_FILE)}>
             <span>New File</span><span class="shortcut" style:color={fgMuted}>Ctrl+N</span>
+          </button>
+          <button class="menu-item" onclick={newWindow}>
+            <span>New Window</span><span class="shortcut" style:color={fgMuted}>Ctrl+Shift+N</span>
           </button>
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.OPEN_FILE)}>
             <span>Open...</span><span class="shortcut" style:color={fgMuted}>Ctrl+O</span>

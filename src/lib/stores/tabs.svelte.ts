@@ -90,40 +90,72 @@ export function switchTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: st
 
 /**
  * Close a tab. Disposes Monaco model and removes from tabs.
+ *
+ * Ordering is critical:
+ *   1. Compute which tab survives as the new active.
+ *   2. Update reactive tab store (splice + activeTabId) so Svelte derived
+ *      state (activeTab, titles, etc.) is consistent BEFORE Monaco work.
+ *   3. Swap the editor onto a LIVE model matching the new activeTabId.
+ *   4. Dispose the old model last — never while it's the editor's active
+ *      model, or Monaco throws "Model is disposed!" from decorations / async
+ *      rendering that run between dispose and the next setModel.
  */
 export function closeTab(editor: monaco.editor.IStandaloneCodeEditor, tabId: string): void {
   const idx = tabStore.tabs.findIndex((t) => t.id === tabId);
   if (idx === -1) return;
 
-  // Dispose model
-  const model = modelCache.get(tabId);
-  if (model) {
-    model.dispose();
-    modelCache.delete(tabId);
-  }
-  viewStateCache.delete(tabId);
+  const wasActive = tabStore.activeTabId === tabId;
+  const oldModel = modelCache.get(tabId);
 
+  // 1. Compute the survivor BEFORE mutating.
+  let newActiveId: string | null = tabStore.activeTabId;
+  if (wasActive) {
+    if (tabStore.tabs.length <= 1) {
+      newActiveId = null;
+    } else {
+      const remaining = tabStore.tabs.filter((t) => t.id !== tabId);
+      const newIdx = Math.min(idx, remaining.length - 1);
+      newActiveId = remaining[newIdx]?.id ?? null;
+    }
+  }
+
+  // 2. Update reactive state first (single consistent snapshot for Svelte).
   tabStore.tabs.splice(idx, 1);
+  tabStore.activeTabId = newActiveId;
 
-  if (tabStore.tabs.length === 0) {
-    tabStore.activeTabId = null;
-    // Clear editor
-    const emptyModel = monaco.editor.createModel('', 'plaintext');
-    editor.setModel(emptyModel);
-    return;
+  // 3. Swap editor onto a live model.
+  if (wasActive) {
+    if (newActiveId) {
+      const newModel = modelCache.get(newActiveId);
+      if (newModel && !newModel.isDisposed()) {
+        editor.setModel(newModel);
+        const vs = viewStateCache.get(newActiveId);
+        if (vs) {
+          editor.restoreViewState(vs);
+        } else {
+          const survivorTab = tabStore.tabs.find((t) => t.id === newActiveId);
+          if (survivorTab) {
+            editor.setPosition({
+              lineNumber: survivorTab.cursor.line,
+              column: survivorTab.cursor.column,
+            });
+            editor.setScrollTop(survivorTab.scrollTop);
+          }
+        }
+        editor.focus();
+      }
+    } else {
+      const emptyModel = monaco.editor.createModel('', 'plaintext');
+      editor.setModel(emptyModel);
+    }
   }
 
-  // Switch to nearest tab
-  const newIdx = Math.min(idx, tabStore.tabs.length - 1);
-  const newTabId = tabStore.tabs[newIdx].id;
-  tabStore.activeTabId = newTabId;
-
-  const newModel = modelCache.get(newTabId);
-  if (newModel) {
-    editor.setModel(newModel);
-    const vs = viewStateCache.get(newTabId);
-    if (vs) editor.restoreViewState(vs);
+  // 4. Dispose old model last.
+  if (oldModel && !oldModel.isDisposed()) {
+    try { oldModel.dispose(); } catch { /* ignore */ }
   }
+  modelCache.delete(tabId);
+  viewStateCache.delete(tabId);
 }
 
 /**
