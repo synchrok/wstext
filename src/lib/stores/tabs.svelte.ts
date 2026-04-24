@@ -31,23 +31,32 @@ export function getActiveTab() {
 /**
  * Open a new tab with the given content.
  * Returns the new tab's ID.
+ *
+ * NOTE: each tab gets a unique Monaco URI that embeds the tab id, even for
+ * file-backed tabs. Without the id, two tabs opening the same path would
+ * share a single Monaco model — disposing one tab's model would crash the
+ * other (classic cross-window drag-out symptom). The id disambiguates them
+ * at the URI level while still giving Monaco a sensible path hint for
+ * language detection.
  */
 export function openTab(tabData: Omit<TabState, 'id'>): string {
   const id = generateId();
   const tab: TabState = { ...tabData, id };
 
-  // Create Monaco model for this tab
+  // Create Monaco model for this tab with a per-tab unique URI.
   const uri = tab.filePath
-    ? monaco.Uri.parse(`file:///${tab.filePath.replace(/\\/g, '/')}`)
+    ? monaco.Uri.parse(`file:///${id}/${tab.filePath.replace(/\\/g, '/').replace(/^\/+/, '')}`)
     : monaco.Uri.parse(`untitled:///${id}`);
 
-  // Check if a model already exists for this URI (shouldn't happen but defensive)
-  let model = monaco.editor.getModel(uri);
-  if (!model) {
-    model = monaco.editor.createModel(tab.content, tab.language, uri);
-    if (tab.isLargeFile) {
-      model.updateOptions({ tabSize: 4 });
-    }
+  // Belt-and-braces: if something already owns this URI, dispose it first
+  // so we can always create a fresh model owned by THIS tab.
+  const existing = monaco.editor.getModel(uri);
+  if (existing && !existing.isDisposed()) {
+    try { existing.dispose(); } catch { /* ignore */ }
+  }
+  const model = monaco.editor.createModel(tab.content, tab.language, uri);
+  if (tab.isLargeFile) {
+    model.updateOptions({ tabSize: 4 });
   }
   modelCache.set(id, model);
 

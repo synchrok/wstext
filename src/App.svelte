@@ -108,15 +108,26 @@
     void (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
-        earlyAdoptUnlisten = await listen<{ tabData: TabState }>(MW_EVENTS.ADOPT_TAB, (evt) => {
-          if (!evt.payload?.tabData) return;
-          adoptReceived = true;
-          if (editorReady) {
-            adoptIntoEditor(evt.payload.tabData);
-          } else {
-            pendingAdoptedTabs.push(evt.payload.tabData);
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const myLabel = getCurrentWindow().label;
+        earlyAdoptUnlisten = await listen<{ tabData: TabState; source?: string }>(
+          MW_EVENTS.ADOPT_TAB,
+          (evt) => {
+            if (!evt.payload?.tabData) return;
+            // Ignore any adopt event we emitted ourselves. This can happen
+            // because emit()-style events are delivered to every listener in
+            // the app — including the sender — and emitTo() has historically
+            // been flaky about cross-window isolation. Treat "we are the
+            // source" as an unconditional skip.
+            if (evt.payload.source && evt.payload.source === myLabel) return;
+            adoptReceived = true;
+            if (editorReady) {
+              adoptIntoEditor(evt.payload.tabData);
+            } else {
+              pendingAdoptedTabs.push(evt.payload.tabData);
+            }
           }
-        });
+        );
         // Announce readiness right away — the source's emit can now land
         // even before Monaco has mounted.
         if (adoptWindow) {

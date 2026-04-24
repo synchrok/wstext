@@ -290,6 +290,14 @@
     transition: opacity 0.15s ease;
   }
 
+  /* Tauri v2's `data-tauri-drag-region` only fires when the mousedown target
+     is literally the element carrying the attribute. Children capture the
+     event and break dragging. Disable pointer events on every child inside
+     the title-text so drags bubble up to the drag region. */
+  .title-text > :global(*) {
+    pointer-events: none;
+  }
+
   .title-window-controls {
     display: flex;
     align-items: stretch;

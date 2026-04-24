@@ -263,7 +263,7 @@ export async function sendTabToExistingWindow(
   targetLabel: string,
   tabData: TabState
 ): Promise<void> {
-  await emitTo(targetLabel, MW_EVENTS.ADOPT_TAB, { tabData });
+  await emitTo(targetLabel, MW_EVENTS.ADOPT_TAB, { tabData, source: getWindowLabel() });
   // Best effort: focus the receiving window so the user sees the landing tab.
   try {
     const all = await getAllWebviewWindows();
