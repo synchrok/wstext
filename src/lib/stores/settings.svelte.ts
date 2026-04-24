@@ -1,9 +1,20 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
+import { emit } from '@tauri-apps/api/event';
 import type { AppSettings, ThemeName } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
+import { getWindowLabel, MW_EVENTS } from '../multiWindow';
 
 // LazyStore loads on first access — better startup performance than load()
 const store = new LazyStore('settings.json');
+
+/**
+ * If true, the next `updateSetting()` call will skip broadcasting. Used by
+ * listeners that apply incoming changes to avoid emitting them right back.
+ */
+let suppressBroadcast = false;
+export function setSuppressBroadcast(v: boolean): void {
+  suppressBroadcast = v;
+}
 
 /**
  * Reactive application settings using Svelte 5 runes.
@@ -54,6 +65,19 @@ export function updateSetting<K extends keyof AppSettings>(
   value: AppSettings[K]
 ): void {
   appSettings[key] = value;
+
+  // Broadcast to other windows so they can sync their reactive state.
+  // Suppressed when we're the one applying an incoming broadcast.
+  if (!suppressBroadcast) {
+    try {
+      void emit(MW_EVENTS.SETTINGS_CHANGED, {
+        source: getWindowLabel(),
+        changes: { [key]: value },
+      });
+    } catch {
+      /* non-critical */
+    }
+  }
 
   // Debounced persist — avoids excessive disk writes during rapid changes
   if (saveDebounceTimer !== undefined) {

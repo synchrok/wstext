@@ -17,6 +17,7 @@
     onTabClose?: (tabId: string) => void;
     onTabMiddleClick?: (tabId: string) => void;
     onTabReorder?: (fromIndex: number, toIndex: number) => void;
+    onTabDragOut?: (tabId: string, screenX: number, screenY: number) => void;
   }
 
   let {
@@ -34,7 +35,11 @@
     onTabClose = undefined,
     onTabMiddleClick = undefined,
     onTabReorder = undefined,
+    onTabDragOut = undefined,
   }: Props = $props();
+
+  /** Pixels outside the tab-bar vertical bounds that triggers a drag-out. */
+  const DRAG_OUT_THRESHOLD_Y = 50;
 
   function emit(event: string) {
     window.dispatchEvent(new CustomEvent(event));
@@ -43,6 +48,7 @@
   let dragIdx = $state(-1);
   let dragOverIdx = $state(-1);
   let isDragging = false;
+  let isDraggedOut = $state(false);
   let dragStartX = 0;
 
   function handleTabMouseDown(e: MouseEvent, idx: number): void {
@@ -66,31 +72,54 @@
       }
       if (!isDragging) return;
 
-      // Find which tab we're over
-      const tabsArea = (ev.target as HTMLElement)?.closest?.('.tabs-area') ??
-        document.querySelector('.tabs-area');
-      if (!tabsArea) return;
-
-      const tabEls = tabsArea.querySelectorAll('.tab');
-      for (let i = 0; i < tabEls.length; i++) {
-        const rect = tabEls[i].getBoundingClientRect();
-        if (ev.clientX >= rect.left && ev.clientX <= rect.right) {
-          dragOverIdx = i;
-          break;
+      // Detect drag-out: mouse moved vertically past the tab bar edges.
+      const bar = document.querySelector('.tab-bar');
+      if (bar) {
+        const barRect = bar.getBoundingClientRect();
+        const outside =
+          ev.clientY < barRect.top - DRAG_OUT_THRESHOLD_Y ||
+          ev.clientY > barRect.bottom + DRAG_OUT_THRESHOLD_Y;
+        if (outside !== isDraggedOut) {
+          isDraggedOut = outside;
+          document.body.style.cursor = outside ? 'alias' : 'grabbing';
         }
+      }
+
+      // Only update inner-reorder target when NOT dragged out.
+      if (!isDraggedOut) {
+        const tabsArea = (ev.target as HTMLElement)?.closest?.('.tabs-area') ??
+          document.querySelector('.tabs-area');
+        if (!tabsArea) return;
+
+        const tabEls = tabsArea.querySelectorAll('.tab');
+        for (let i = 0; i < tabEls.length; i++) {
+          const rect = tabEls[i].getBoundingClientRect();
+          if (ev.clientX >= rect.left && ev.clientX <= rect.right) {
+            dragOverIdx = i;
+            break;
+          }
+        }
+      } else {
+        dragOverIdx = -1;
       }
     };
 
-    const onUp = () => {
+    const onUp = (ev: MouseEvent) => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
 
-      if (isDragging && dragIdx >= 0 && dragOverIdx >= 0 && dragIdx !== dragOverIdx) {
+      if (isDragging && isDraggedOut && dragIdx >= 0) {
+        const tabId = tabs[dragIdx]?.id;
+        if (tabId && onTabDragOut) {
+          onTabDragOut(tabId, ev.screenX, ev.screenY);
+        }
+      } else if (isDragging && dragIdx >= 0 && dragOverIdx >= 0 && dragIdx !== dragOverIdx) {
         onTabReorder?.(dragIdx, dragOverIdx);
       }
       isDragging = false;
+      isDraggedOut = false;
       dragIdx = -1;
       dragOverIdx = -1;
     };
