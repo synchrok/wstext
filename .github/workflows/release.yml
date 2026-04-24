@@ -61,7 +61,7 @@ jobs:
           VERSION="${{ inputs.version }}"
           node -e "const f='src-tauri/tauri.conf.json';const c=JSON.parse(require('fs').readFileSync(f,'utf8'));c.version=process.argv[1];require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')" "$VERSION"
           node -e "const f='package.json';const c=JSON.parse(require('fs').readFileSync(f,'utf8'));c.version=process.argv[1];require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')" "$VERSION"
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          node -e "const fs=require('fs');const f='src-tauri/Cargo.toml';let c=fs.readFileSync(f,'utf8');c=c.replace(/^version = \".*\"/m,'version = \"'+process.argv[1]+'\"');fs.writeFileSync(f,c)" "$VERSION"
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
