@@ -17,6 +17,10 @@
   <a href="README.md">English</a>
 </p>
 
+<p align="center">
+  <img src="static/screenshot.png" alt="WSText Screenshot" width="800" />
+</p>
+
 ---
 
 ## 주요 기능

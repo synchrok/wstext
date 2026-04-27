@@ -17,6 +17,10 @@
   <a href="README.ko.md">한국어</a>
 </p>
 
+<p align="center">
+  <img src="static/screenshot.png" alt="WSText Screenshot" width="800" />
+</p>
+
 ---
 
 ## Features
