@@ -44,19 +44,15 @@ export class TodoManager {
   private _editorDom: HTMLElement | null = null;
   private _copyHandler: EventListener | null = null;
 
-  /** Check if current model is markdown — skip native checkboxes for md */
-  private isMarkdown(): boolean {
-    const model = this.editor.getModel();
-    if (!model) return false;
-    const lang = model.getLanguageId();
-    return lang === 'markdown' || lang === 'mdx';
-  }
-
-  /** Only plaintext files should have checkbox auto-conversion */
-  private shouldConvertCheckboxes(): boolean {
+  /** Only plaintext files participate in todo behavior (auto-convert + decorations) */
+  private isPlaintext(): boolean {
     const model = this.editor.getModel();
     if (!model) return false;
     return model.getLanguageId() === 'plaintext';
+  }
+
+  private shouldConvertCheckboxes(): boolean {
+    return this.isPlaintext();
   }
 
   constructor(editor: monaco.editor.IStandaloneCodeEditor) {
@@ -232,8 +228,8 @@ export class TodoManager {
   refreshDecorations(): void {
     const model = this.editor.getModel();
     if (!model) { this.decorationIds = []; return; }
-    // Skip decorations for markdown files
-    if (this.isMarkdown()) {
+    // Only plaintext files use unicode checkboxes; other languages must keep their syntax untouched.
+    if (!this.isPlaintext()) {
       this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
       return;
     }

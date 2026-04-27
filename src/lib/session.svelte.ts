@@ -178,8 +178,8 @@ async function restoreTab(tab: TabState): Promise<void> {
       }
     }
 
-    // Only convert checkboxes for non-markdown files
-    if (tab.language !== 'markdown') {
+    // Checkbox conversion is plaintext-only — keep yaml/json/source files untouched.
+    if (tab.language === 'plaintext') {
       content = fileToDisplay(content);
     }
 
@@ -203,9 +203,9 @@ function buildSessionState(): SessionState {
     activeTabId: tabStore.activeTabId,
     tabs: tabStore.tabs.map((t) => ({
       ...t,
-      // Always store full content — Tauri FS scope may block re-read on restore
-      // Markdown keeps original [ ]/[x] format; others convert ☐/☑ back
-      content: t.language === 'markdown' ? t.content : displayToFile(t.content),
+      // Always store full content — Tauri FS scope may block re-read on restore.
+      // Only plaintext tabs hold display-format checkboxes; everything else is stored verbatim.
+      content: t.language === 'plaintext' ? displayToFile(t.content) : t.content,
     })),
     savedAt: Date.now(),
   };

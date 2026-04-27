@@ -19,8 +19,8 @@ interface FileWatcherOptions {
 const POLL_INTERVAL_MS = 1500;
 const SELF_SAVE_IGNORE_MS = 2000;
 
-function isMarkdownLanguage(language: string): boolean {
-  return language === 'markdown' || language === 'mdx';
+function isPlaintextLanguage(language: string): boolean {
+  return language === 'plaintext';
 }
 
 export class FileWatcher {
@@ -102,7 +102,7 @@ export class FileWatcher {
 
       const { content, encoding, hasBOM } = await readFileWithEncoding(tab.filePath);
       await this.options.onReload(tabId, {
-        content: isMarkdownLanguage(tab.language) ? content : fileToDisplay(content),
+        content: isPlaintextLanguage(tab.language) ? fileToDisplay(content) : content,
         encoding,
         hasBOM,
       });

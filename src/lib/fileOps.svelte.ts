@@ -121,7 +121,9 @@ export async function openFileByPath(path: string): Promise<string | null> {
     const tabId = _openTabFn({
       filePath: path,
       title: fileName,
-      content: language === 'markdown' ? content : fileToDisplay(content),
+      // Checkbox conversion only applies to plaintext files.
+      // YAML / JSON / source code etc. must keep their original syntax (e.g. `[]` arrays).
+      content: language === 'plaintext' ? fileToDisplay(content) : content,
       isDirty: false,
       cursor: { line: 1, column: 1 },
       scrollTop: 0,
@@ -149,8 +151,8 @@ export async function saveFile(tab: TabState): Promise<boolean> {
   }
 
   try {
-    const isMarkdown = tab.language === 'markdown';
-    const output = isMarkdown ? tab.content : displayToFile(tab.content);
+    // Only plaintext tabs hold display-format checkboxes; everything else is stored as-is.
+    const output = tab.language === 'plaintext' ? displayToFile(tab.content) : tab.content;
     await writeFileWithEncoding(tab.filePath, output, tab.encoding, tab.hasBOM);
     return true;
   } catch (err) {
@@ -174,8 +176,7 @@ export async function saveFileAs(tab: TabState): Promise<boolean> {
   if (path === null) return false;
 
   try {
-    const isMarkdown = tab.language === 'markdown';
-    const output = isMarkdown ? tab.content : displayToFile(tab.content);
+    const output = tab.language === 'plaintext' ? displayToFile(tab.content) : tab.content;
     await writeFileWithEncoding(path, output, tab.encoding, tab.hasBOM);
 
     // Notify tab store to update path/title and clear dirty state
