@@ -59,9 +59,31 @@ Download the latest release from [Releases](../../releases):
 |----------|------|-------|
 | Windows (installer) | `WSText_x.x.x_x64-setup.exe` | Recommended. Includes auto-update. |
 | Windows (portable) | `WSText-portable.exe` | No install needed. Update notifications only. |
-| macOS | `WSText_x.x.x_aarch64.dmg` | Apple Silicon. Includes auto-update. |
+| macOS | `WSText_x.x.x_aarch64.dmg` | Apple Silicon. Includes auto-update. **See note below.** |
 
 The app checks for updates on startup and notifies you when a new version is available.
+
+### macOS: "WSText is damaged" message
+
+The macOS build is currently **not signed with an Apple Developer certificate**. When you download and try to open it, macOS may show:
+
+> "WSText" is damaged and can't be opened. You should move it to the Trash.
+
+The app is **not** actually damaged — this is macOS Gatekeeper rejecting unsigned downloads from the internet. Remove the quarantine attribute that macOS attached during download:
+
+1. Open the `.dmg` and drag `WSText.app` into `/Applications`.
+2. Open Terminal and run:
+   ```bash
+   xattr -cr /Applications/WSText.app
+   ```
+   If that doesn't work:
+   ```bash
+   sudo xattr -rd com.apple.quarantine /Applications/WSText.app
+   ```
+3. Launch WSText from Launchpad or the Applications folder.
+
+You only need to do this once per install. Proper code signing + notarization is on the roadmap.
+
 ## Keyboard Shortcuts
 
 | Action | Shortcut |
@@ -95,6 +117,7 @@ npm run tauri build
 ## Roadmap
 
 - [x] Project mode — manage multiple files and folders
+- [ ] macOS code signing & notarization
 - [ ] Plugin system
 - [ ] Linux support
 

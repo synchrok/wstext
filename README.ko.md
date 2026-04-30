@@ -59,9 +59,30 @@
 |--------|------|------|
 | Windows (설치형) | `WSText_x.x.x_x64-setup.exe` | 권장. 자동 업데이트 포함. |
 | Windows (포터블) | `WSText-portable.exe` | 설치 불필요. 업데이트 알림만 표시. |
-| macOS | `WSText_x.x.x_aarch64.dmg` | Apple Silicon. 자동 업데이트 포함. |
+| macOS | `WSText_x.x.x_aarch64.dmg` | Apple Silicon. 자동 업데이트 포함. **아래 안내 참고.** |
 
 앱 시작 시 자동으로 최신 버전을 확인하고, 새 버전이 있으면 알려줍니다.
+
+### macOS: "손상되어 열 수 없다"는 메시지가 뜰 때
+
+현재 macOS 빌드는 **Apple Developer 인증서로 서명되어 있지 않습니다**. 다운로드 후 열려고 하면 다음 메시지가 뜰 수 있습니다:
+
+> "WSText"이(가) 손상되어 열 수 없습니다. 휴지통으로 이동해야 합니다.
+
+실제로 앱이 손상된 게 **아닙니다** — macOS Gatekeeper가 인터넷에서 받은 미서명 앱을 차단하는 것뿐입니다. 다운로드 시 macOS가 붙인 quarantine 속성을 제거하면 정상 실행됩니다:
+
+1. `.dmg`를 열어 `WSText.app`을 `/Applications`로 드래그하세요.
+2. 터미널을 열고 다음 명령 실행:
+   ```bash
+   xattr -cr /Applications/WSText.app
+   ```
+   그래도 안 되면:
+   ```bash
+   sudo xattr -rd com.apple.quarantine /Applications/WSText.app
+   ```
+3. Launchpad 또는 응용 프로그램 폴더에서 WSText를 정상적으로 실행하세요.
+
+이 작업은 설치당 한 번만 하면 됩니다. 정식 코드 서명 + 공증은 로드맵에 있습니다.
 
 ## 단축키
 
@@ -96,6 +117,7 @@ npm run tauri build
 ## 로드맵
 
 - [x] 프로젝트 모드 — 여러 파일/폴더를 한 번에 관리
+- [ ] macOS 코드 서명 & 공증
 - [ ] 플러그인 시스템
 - [ ] Linux 지원
 
