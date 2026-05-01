@@ -26,6 +26,12 @@ body::-webkit-scrollbar {
   height: 0 !important;
 }
 
+/* macOS WebKit subpixel smoothing causes per-keystroke line jitter;
+   `antialiased` snaps glyphs to whole pixels. Ref: vscode#296539 */
+.monaco-editor {
+  -webkit-font-smoothing: antialiased;
+}
+
 /* Monaco editor scrollbar styling */
 .monaco-editor ::-webkit-scrollbar {
   width: 8px;

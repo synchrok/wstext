@@ -183,6 +183,11 @@
   let statusLine = $state(1);
   let statusColumn = $state(1);
 
+  // Track previous font family to remeasure Monaco's char-width cache only
+  // when the font actually changes (NOT on zoom/theme tweaks). Plain `let`
+  // (non-reactive in Svelte 5 runes mode) is intentional.
+  let prevFontFamily = '';
+
   onMount(() => {
     (async () => {
       // Load settings first
@@ -196,6 +201,16 @@
       setSupportBracketV(appSettings.supportBracketV);
     setCopyAsCheckbox(appSettings.copyAsCheckbox);
 
+      // Wait for web fonts (Pretendard) before creating editor —
+      // Monaco caches font metrics on first render; if Pretendard isn't loaded yet,
+      // it caches fallback metrics and the cursor/lines drift on later input.
+      // Esp. critical on macOS WKWebView, which honors subpixel font metric changes.
+      try {
+        await document.fonts.ready;
+      } catch {
+        /* FontFaceSet unavailable — proceed without explicit wait. */
+      }
+
       // Create Monaco editor
       editor = monaco.editor.create(editorContainer, {
         theme: appSettings.theme,
@@ -207,6 +222,21 @@
         },
         fontSize: appSettings.fontSize,
         fontFamily: appSettings.fontFamily,
+        // Stability fixes for macOS line jitter:
+        // - Integer lineHeight prevents subpixel wobble (microsoft/vscode#296539)
+        // - disableMonospaceOptimizations is required because Pretendard is a
+        //   proportional font; without it Monaco caches a wrong char-width and
+        //   re-measures on every input that changes the per-char width.
+        // - fontLigatures off avoids ligature re-shaping on input.
+        // - smoothScrolling off avoids per-keystroke scroll animations.
+        // - cursorSurroundingLines=0 disables auto-scroll on each cursor move.
+        // - explicit fontWeight prevents Variable font fake-bold ambiguity.
+        lineHeight: 20,
+        disableMonospaceOptimizations: true,
+        fontLigatures: false,
+        smoothScrolling: false,
+        cursorSurroundingLines: 0,
+        fontWeight: '400',
         scrollBeyondLastLine: true,
         lineNumbers: 'on',
         renderLineHighlight: 'all',
@@ -219,6 +249,10 @@
         },
         autoClosingBrackets: 'never',
       });
+
+      // Force a font remeasure now that the real Pretendard is available —
+      // ensures Monaco's internal char-width cache reflects the actual font.
+      monaco.editor.remeasureFonts();
 
       // Force settings — workaround for Monaco sometimes ignoring creation options
       requestAnimationFrame(() => {
@@ -499,6 +533,14 @@
       scrollbar: { horizontal: 'hidden', horizontalScrollbarSize: 0 },
     });
     setTheme(appSettings.theme);
+
+    // When the font family actually changes (settings dialog), force Monaco
+    // to refresh its cached char-width metrics. Skipped on zoom/theme changes
+    // to avoid measurement churn on the hot path.
+    if (appSettings.fontFamily !== prevFontFamily) {
+      prevFontFamily = appSettings.fontFamily;
+      monaco.editor.remeasureFonts();
+    }
   });
 
   // React to active tab changes → update todo manager

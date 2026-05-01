@@ -43,6 +43,7 @@ export class TodoManager {
   private isReplacing = false;
   private _editorDom: HTMLElement | null = null;
   private _copyHandler: EventListener | null = null;
+  private lastDecorationKey: string = '';
 
   /** Only plaintext files participate in todo behavior (auto-convert + decorations) */
   private isPlaintext(): boolean {
@@ -227,28 +228,41 @@ export class TodoManager {
   /** Apply color decorations to ☐ and ☑ characters */
   refreshDecorations(): void {
     const model = this.editor.getModel();
-    if (!model) { this.decorationIds = []; return; }
+    if (!model) {
+      this.decorationIds = [];
+      this.lastDecorationKey = '';
+      return;
+    }
     // Only plaintext files use unicode checkboxes; other languages must keep their syntax untouched.
     if (!this.isPlaintext()) {
-      this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
+      const nonPlainKey = `np:${model.id}`;
+      if (nonPlainKey !== this.lastDecorationKey) {
+        this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
+        this.lastDecorationKey = nonPlainKey;
+      }
       return;
     }
 
     const decorations: monaco.editor.IModelDeltaDecoration[] = [];
+    const keyParts: string[] = [`m:${model.id}`];
     const lineCount = model.getLineCount();
 
     for (let line = 1; line <= lineCount; line++) {
       const lineContent = model.getLineContent(line);
-      // Collect all checkbox positions on this line
       const boxes: { col: number; checked: boolean }[] = [];
       for (let i = 0; i < lineContent.length; i++) {
         if (lineContent[i] === UNCHECKED) boxes.push({ col: i + 1, checked: false });
         else if (lineContent[i] === CHECKED) boxes.push({ col: i + 1, checked: true });
       }
+      if (boxes.length === 0) continue;
+
+      const maxCol = model.getLineMaxColumn(line);
+      keyParts.push(
+        `${line}@${maxCol}:` + boxes.map(b => `${b.col}${b.checked ? 'C' : 'U'}`).join(',')
+      );
 
       for (let b = 0; b < boxes.length; b++) {
         const box = boxes[b];
-        // Color the checkbox character
         decorations.push({
           range: new monaco.Range(line, box.col, line, box.col + 1),
           options: {
@@ -257,10 +271,9 @@ export class TodoManager {
           },
         });
 
-        // Semi-transparent text after checked checkbox — only until next checkbox or line end
         if (box.checked) {
           const textStart = box.col + 1;
-          const textEnd = (b + 1 < boxes.length) ? boxes[b + 1].col : model.getLineMaxColumn(line);
+          const textEnd = (b + 1 < boxes.length) ? boxes[b + 1].col : maxCol;
           if (textStart < textEnd) {
             decorations.push({
               range: new monaco.Range(line, textStart, line, textEnd),
@@ -274,6 +287,11 @@ export class TodoManager {
       }
     }
 
+    // Skip when checkbox layout is unchanged: even no-op deltaDecorations
+    // triggers Monaco layout passes that amplify macOS WKWebView jitter.
+    const key = keyParts.join('|');
+    if (key === this.lastDecorationKey) return;
+    this.lastDecorationKey = key;
     this.decorationIds = this.editor.deltaDecorations(this.decorationIds, decorations);
   }
 
