@@ -32,6 +32,15 @@ body::-webkit-scrollbar {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Hard-cap line geometry during macOS Hangul IME composition (monaco-editor#4592):
+   contain isolates per-line reflow; height/line-height MUST match App.svelte's
+   `lineHeight: 20` so the active line can't shift while WKWebView re-shapes IME glyphs. */
+.monaco-editor .view-line {
+  contain: layout;
+  height: 20px !important;
+  line-height: 20px !important;
+}
+
 /* Monaco editor scrollbar styling */
 .monaco-editor ::-webkit-scrollbar {
   width: 8px;
