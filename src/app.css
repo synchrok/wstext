@@ -32,13 +32,21 @@ body::-webkit-scrollbar {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Hard-cap line geometry during macOS Hangul IME composition (monaco-editor#4592):
-   contain isolates per-line reflow; height/line-height MUST match App.svelte's
-   `lineHeight: 20` so the active line can't shift while WKWebView re-shapes IME glyphs. */
+/* Do NOT add `height`, `contain: layout`, or `will-change: transform` here:
+   ghosting (WebKit#236261), or active-line GPU layer makes IME marked-text
+   paint over inline decorations with the default color (white-checkbox bug). */
 .monaco-editor .view-line {
-  contain: layout;
-  height: 20px !important;
+  min-height: 20px;
   line-height: 20px !important;
+}
+
+/* WebKit IME marked-text repaints over .view-line ignoring inline decoration
+   colors. Forcing the input textarea fully transparent suppresses that overlay. */
+.monaco-editor textarea.inputarea {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  background: transparent !important;
+  text-shadow: none !important;
 }
 
 /* Monaco editor scrollbar styling */
