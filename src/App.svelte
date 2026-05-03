@@ -236,7 +236,7 @@
         fontLigatures: false,
         smoothScrolling: false,
         cursorSurroundingLines: 0,
-        fontWeight: '400',
+        fontWeight: '450',
         scrollBeyondLastLine: true,
         lineNumbers: 'on',
         renderLineHighlight: 'all',
