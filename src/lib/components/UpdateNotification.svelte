@@ -63,10 +63,9 @@
       <button class="update-toast-close" onclick={() => onDismiss?.()} style="color:{fgMuted}" aria-label="닫기">×</button>
     </div>
   {:else}
-    <!-- 설치 버전: 모달 다이얼로그 -->
-    <div class="update-overlay" role="presentation" onclick={() => onDismiss?.()}>
-      <div class="update-modal" role="presentation" style="background:{bgColor};color:{fgColor};border-color:{borderColor}"
-           onclick={(e) => e.stopPropagation()}>
+    <!-- 설치 버전: 모달 (outside-click 비활성 — 실수로 닫으면 메뉴로만 다시 열림) -->
+    <div class="update-overlay" role="presentation">
+      <div class="update-modal" role="presentation" style="background:{bgColor};color:{fgColor};border-color:{borderColor}">
         <h3 class="update-title">업데이트 사용 가능</h3>
         <p class="update-version" style="color:{fgMuted}">새 버전: {version}</p>
         {#if hasDirtyTabs}

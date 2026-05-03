@@ -27,6 +27,7 @@ export const MENU_EVENTS = {
   SET_THEME: 'wstext:set-theme',
   FORMAT_DOCUMENT: 'wstext:format-document',
   ABOUT: 'wstext:about',
+  CHECK_FOR_UPDATES: 'wstext:check-for-updates',
 } as const;
 
 function emit(event: string, detail?: unknown): void {
@@ -204,6 +205,12 @@ export async function setupMenu(): Promise<void> {
       await Submenu.new({
         text: 'Help',
         items: [
+          await MenuItem.new({
+            id: 'check-for-updates',
+            text: 'Check for Updates',
+            action: () => emit(MENU_EVENTS.CHECK_FOR_UPDATES),
+          }),
+          await PredefinedMenuItem.new({ item: 'Separator' }),
           await MenuItem.new({
             id: 'about',
             text: 'About WSText',

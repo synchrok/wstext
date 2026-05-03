@@ -9,6 +9,8 @@ interface UpdateState {
   isPortable: boolean;
   checking: boolean;
   downloading: boolean;
+  // Outcome of the most recent MANUAL check (menu trigger). Auto-checks leave this null.
+  manualCheckOutcome: 'available' | 'latest' | 'error' | null;
 }
 
 export const updateState = $state<UpdateState>({
@@ -18,6 +20,7 @@ export const updateState = $state<UpdateState>({
   isPortable: false,
   checking: false,
   downloading: false,
+  manualCheckOutcome: null,
 });
 
 export async function loadUpdateState(): Promise<void> {
@@ -68,23 +71,23 @@ function isNewerVersion(current: string, remote: string): boolean {
   return rPatch > cPatch;
 }
 
-/**
- * Main entry point. Detects portable vs installed and delegates.
- */
-export async function checkForUpdate(): Promise<void> {
+/** force=true (menu trigger) bypasses dismissedVersion and sets manualCheckOutcome for toast UI. */
+export async function checkForUpdate(force: boolean = false): Promise<void> {
   if (updateState.checking) return;
   updateState.checking = true;
+  if (force) updateState.manualCheckOutcome = null;
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     const portable = await invoke<boolean>('is_portable');
     updateState.isPortable = portable;
     if (portable) {
-      await checkPortableUpdate();
+      await checkPortableUpdate(force);
     } else {
-      await checkInstalledUpdate();
+      await checkInstalledUpdate(force);
     }
   } catch (err) {
     console.warn('[updater] Failed to detect portable mode:', err);
+    if (force) updateState.manualCheckOutcome = 'error';
   } finally {
     updateState.checking = false;
   }
@@ -93,40 +96,50 @@ export async function checkForUpdate(): Promise<void> {
 /**
  * Check for updates via Tauri updater plugin (installed version).
  */
-async function checkInstalledUpdate(): Promise<void> {
+async function checkInstalledUpdate(force: boolean): Promise<void> {
   try {
     const { check } = await import('@tauri-apps/plugin-updater');
     const update = await check();
     if (update && update.version) {
-      if (isDismissed(update.version)) return;
+      if (!force && isDismissed(update.version)) return;
       updateState.availableVersion = update.version;
       updateState.updateUrl = '';
-      // Store the update object reference for installUpdate
       pendingUpdate = update;
+      if (force) updateState.manualCheckOutcome = 'available';
+    } else if (force) {
+      updateState.manualCheckOutcome = 'latest';
     }
   } catch (err) {
     console.warn('[updater] Update check failed (installed):', err);
+    if (force) updateState.manualCheckOutcome = 'error';
   }
 }
 
 /**
  * Check for updates via GitHub API (portable version).
  */
-async function checkPortableUpdate(): Promise<void> {
+async function checkPortableUpdate(force: boolean): Promise<void> {
   try {
     const { getVersion } = await import('@tauri-apps/api/app');
     const currentVersion = await getVersion();
     const response = await fetch('https://api.github.com/repos/synchrok/wstext/releases/latest');
-    if (!response.ok) return;
+    if (!response.ok) {
+      if (force) updateState.manualCheckOutcome = 'error';
+      return;
+    }
     const data = await response.json() as { tag_name: string; html_url: string };
     const remoteVersion = data.tag_name.replace(/^v/, '');
     if (isNewerVersion(currentVersion, remoteVersion)) {
-      if (isDismissed(remoteVersion)) return;
+      if (!force && isDismissed(remoteVersion)) return;
       updateState.availableVersion = remoteVersion;
       updateState.updateUrl = data.html_url;
+      if (force) updateState.manualCheckOutcome = 'available';
+    } else if (force) {
+      updateState.manualCheckOutcome = 'latest';
     }
   } catch (err) {
     console.warn('[updater] Update check failed (portable):', err);
+    if (force) updateState.manualCheckOutcome = 'error';
   }
 }
 

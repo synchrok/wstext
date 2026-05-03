@@ -188,6 +188,17 @@
   // (non-reactive in Svelte 5 runes mode) is intentional.
   let prevFontFamily = '';
 
+  let updateCheckToast = $state<string | null>(null);
+  let updateCheckToastTimer: ReturnType<typeof setTimeout> | null = null;
+  function showUpdateCheckToast(msg: string): void {
+    if (updateCheckToastTimer) clearTimeout(updateCheckToastTimer);
+    updateCheckToast = msg;
+    updateCheckToastTimer = setTimeout(() => {
+      updateCheckToast = null;
+      updateCheckToastTimer = null;
+    }, 3000);
+  }
+
   onMount(() => {
     (async () => {
       // Load settings first
@@ -337,6 +348,15 @@
         showSettings = true;
       }, sig);
       window.addEventListener(MENU_EVENTS.ABOUT, () => (showAbout = true), sig);
+      window.addEventListener(MENU_EVENTS.CHECK_FOR_UPDATES, async () => {
+        if (updateState.checking) return;
+        await checkForUpdate(true);
+        if (updateState.manualCheckOutcome === 'latest') {
+          showUpdateCheckToast('이미 최신 버전입니다');
+        } else if (updateState.manualCheckOutcome === 'error') {
+          showUpdateCheckToast('업데이트 확인 실패');
+        }
+      }, sig);
       window.addEventListener('wstext:next-tab', () => nextTab(editor), sig);
       window.addEventListener('wstext:prev-tab', () => prevTab(editor), sig);
       window.addEventListener('wstext:new-window', async () => {
@@ -1176,6 +1196,12 @@
     onDismiss={() => dismissVersion(updateState.availableVersion!)}
   />
 
+  {#if updateCheckToast}
+    <div class="update-check-toast" style="background:{themeColors.bgSecondary};color:{themeColors.fgPrimary};border-color:{themeColors.border}">
+      {updateCheckToast}
+    </div>
+  {/if}
+
 </div>
 
 <style>
@@ -1332,6 +1358,19 @@
 
   .picker-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .update-check-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 13px;
+    z-index: 1001;
+    pointer-events: none;
   }
 
 </style>
