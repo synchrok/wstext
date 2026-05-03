@@ -1,10 +1,8 @@
 import * as monaco from 'monaco-editor';
 
-// Unicode checkbox characters used in the editor model
 export const UNCHECKED = '☐';
 export const CHECKED = '☑';
 
-// Regex for display format (in editor)
 const DISPLAY_TODO_REGEX = /[☐☑]/g;
 
 /** Whether [v] is also recognized as checked */
@@ -38,7 +36,10 @@ export function displayToFile(text: string): string {
 
 export class TodoManager {
   private editor: monaco.editor.IStandaloneCodeEditor;
-  private decorationIds: string[] = [];
+  // Use createDecorationsCollection — manual decorationIds + deltaDecorations
+  // goes stale on tab/model switch and causes inline classes to silently detach
+  // (the "white checkbox" bug). Collection auto-tracks model lifecycle.
+  private decorationsCollection: monaco.editor.IEditorDecorationsCollection;
   private disposables: monaco.IDisposable[] = [];
   private isReplacing = false;
   private _editorDom: HTMLElement | null = null;
@@ -58,6 +59,7 @@ export class TodoManager {
 
   constructor(editor: monaco.editor.IStandaloneCodeEditor) {
     this.editor = editor;
+    this.decorationsCollection = editor.createDecorationsCollection();
 
     // On content change: auto-convert any [] or [ ] or [x] typed by user → ☐/☑
     const contentDisposable = editor.onDidChangeModelContent(() => {
@@ -229,7 +231,7 @@ export class TodoManager {
   refreshDecorations(): void {
     const model = this.editor.getModel();
     if (!model) {
-      this.decorationIds = [];
+      this.decorationsCollection.clear();
       this.lastDecorationKey = '';
       return;
     }
@@ -237,7 +239,7 @@ export class TodoManager {
     if (!this.isPlaintext()) {
       const nonPlainKey = `np:${model.id}`;
       if (nonPlainKey !== this.lastDecorationKey) {
-        this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
+        this.decorationsCollection.clear();
         this.lastDecorationKey = nonPlainKey;
       }
       return;
@@ -256,6 +258,9 @@ export class TodoManager {
       }
       if (boxes.length === 0) continue;
 
+      // maxCol must always be in the key: when Monaco redraws a view-line on
+      // input it can drop our inline classes, and skipping deltaDecorations
+      // here would leave the checkbox visually unstyled until the next edit.
       const maxCol = model.getLineMaxColumn(line);
       keyParts.push(
         `${line}@${maxCol}:` + boxes.map(b => `${b.col}${b.checked ? 'C' : 'U'}`).join(',')
@@ -292,7 +297,7 @@ export class TodoManager {
     const key = keyParts.join('|');
     if (key === this.lastDecorationKey) return;
     this.lastDecorationKey = key;
-    this.decorationIds = this.editor.deltaDecorations(this.decorationIds, decorations);
+    this.decorationsCollection.set(decorations);
   }
 
   private handleClick(e: monaco.editor.IEditorMouseEvent): void {
@@ -385,9 +390,7 @@ export class TodoManager {
   }
 
   dispose(): void {
-    if (false) {
-    }
-    this.decorationIds = this.editor.deltaDecorations(this.decorationIds, []);
+    this.decorationsCollection.clear();
     this.disposables.forEach(d => d.dispose());
     this.disposables = [];
   }
