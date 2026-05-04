@@ -60,6 +60,7 @@
   } from './lib/multiWindow';
   import { listen } from '@tauri-apps/api/event';
   import { setSuppressBroadcast } from './lib/stores/settings.svelte';
+  import { isMac } from './lib/platform';
   import type { Encoding, AppSettings, TabState } from './lib/types';
 
   // Components
@@ -222,6 +223,27 @@
         /* FontFaceSet unavailable — proceed without explicit wait. */
       }
 
+      // macOS-only Monaco stability fixes. These were added to fix WKWebView
+      // line-jitter / IME / Pretendard fake-bold issues but they actively
+      // *break* rendering on Windows (ClearType + WebView2):
+      //   - Hard-coded `lineHeight: 20` ignores the user's font-size and
+      //     causes adjacent lines to overlap on zoom.
+      //   - `fontWeight: '450'` makes ClearType render text noticeably bolder
+      //     than the Pretendard 400 weight users expect.
+      //   - `disableMonospaceOptimizations` slows Monaco's renderer; only
+      //     needed because Pretendard is proportional and WKWebView caches
+      //     wrong char widths.
+      //   - `fontLigatures: false` is harmless on Windows but kept Mac-side
+      //     for symmetry with the original jitter fix.
+      const macStabilityOpts: monaco.editor.IEditorOptions = isMac
+        ? {
+            lineHeight: 20,
+            disableMonospaceOptimizations: true,
+            fontLigatures: false,
+            fontWeight: '450',
+          }
+        : {};
+
       // Create Monaco editor
       editor = monaco.editor.create(editorContainer, {
         theme: appSettings.theme,
@@ -233,21 +255,10 @@
         },
         fontSize: appSettings.fontSize,
         fontFamily: appSettings.fontFamily,
-        // Stability fixes for macOS line jitter:
-        // - Integer lineHeight prevents subpixel wobble (microsoft/vscode#296539)
-        // - disableMonospaceOptimizations is required because Pretendard is a
-        //   proportional font; without it Monaco caches a wrong char-width and
-        //   re-measures on every input that changes the per-char width.
-        // - fontLigatures off avoids ligature re-shaping on input.
-        // - smoothScrolling off avoids per-keystroke scroll animations.
-        // - cursorSurroundingLines=0 disables auto-scroll on each cursor move.
-        // - explicit fontWeight prevents Variable font fake-bold ambiguity.
-        lineHeight: 20,
-        disableMonospaceOptimizations: true,
-        fontLigatures: false,
+        ...macStabilityOpts,
+        // Cross-platform: keep editor calm during input.
         smoothScrolling: false,
         cursorSurroundingLines: 0,
-        fontWeight: '450',
         scrollBeyondLastLine: true,
         lineNumbers: 'on',
         renderLineHighlight: 'all',
