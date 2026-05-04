@@ -261,6 +261,10 @@
           <button class="menu-item" onclick={() => emit(MENU_EVENTS.ABOUT)}>
             <span>About WSText</span>
           </button>
+          <div class="separator" style:background-color={borderColor}></div>
+          <button class="menu-item" onclick={() => emit(MENU_EVENTS.CHECK_FOR_UPDATES)}>
+            <span>Check for Updates...</span>
+          </button>
         </div>
       {/if}
     </div>
