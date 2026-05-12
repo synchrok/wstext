@@ -227,13 +227,29 @@ export class TodoManager {
     this.replaceModelText(fileToDisplay(model.getValue()));
   }
 
-  /** Apply color decorations to ☐ and ☑ characters */
-  refreshDecorations(): void {
+  /**
+   * Apply color decorations to ☐ and ☑ characters.
+   *
+   * @param force Skip the layout-key short-circuit and re-apply unconditionally.
+   *   Required after `editor.setModel()` (tab switch) — Monaco can drop inline
+   *   classes from the previous render of a reused model, leaving checkboxes
+   *   visually unstyled until the next edit. Caching by content key would
+   *   silently skip the re-application because the key is unchanged.
+   */
+  refreshDecorations(force: boolean = false): void {
     const model = this.editor.getModel();
     if (!model) {
       this.decorationsCollection.clear();
       this.lastDecorationKey = '';
       return;
+    }
+    if (force) {
+      // Drop the prior decoration ids so the next `set()` is a fresh
+      // delta from the editor's POV. Re-issuing the same decorations
+      // through the same collection ids can be a no-op for Monaco's
+      // view-line renderer when the model was just re-attached.
+      this.decorationsCollection.clear();
+      this.lastDecorationKey = '';
     }
     // Only plaintext files use unicode checkboxes; other languages must keep their syntax untouched.
     if (!this.isPlaintext()) {

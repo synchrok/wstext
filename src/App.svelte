@@ -574,14 +574,20 @@
     }
   });
 
-  // React to active tab changes → update todo manager
+  // React to active tab changes → update todo manager.
+  // `force: true` is critical: Monaco occasionally drops inline decoration
+  // classes from a model's previous render when `setModel()` re-attaches the
+  // same model (tab switch back), so the checkboxes lose their color and
+  // render as plain ☐. The content-keyed short-circuit inside
+  // refreshDecorations would otherwise see "nothing changed" and skip the
+  // re-application, leaving the visual bug until the next edit / tab switch.
   $effect(() => {
     const tabId = activeTabId;
     if (!todoManager || !tabId) return;
 
     const tab = tabs.find(t => t.id === tabId);
     if (tab && (tab.language === 'markdown' || tab.language === 'plaintext')) {
-      todoManager.refreshDecorations();
+      todoManager.refreshDecorations(true);
     }
   });
 
