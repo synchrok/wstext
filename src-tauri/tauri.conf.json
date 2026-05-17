@@ -50,6 +50,57 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["txt"],
+        "name": "Plain Text",
+        "description": "Plain Text Document",
+        "role": "Editor",
+        "mimeType": "text/plain"
+      },
+      {
+        "ext": ["md"],
+        "name": "Markdown",
+        "description": "Markdown Document",
+        "role": "Editor",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": ["json"],
+        "name": "JSON",
+        "description": "JSON Document",
+        "role": "Editor",
+        "mimeType": "application/json"
+      },
+      {
+        "ext": ["xml"],
+        "name": "XML",
+        "description": "XML Document",
+        "role": "Editor",
+        "mimeType": "application/xml"
+      },
+      {
+        "ext": ["yaml", "yml"],
+        "name": "YAML",
+        "description": "YAML Document",
+        "role": "Editor",
+        "mimeType": "application/x-yaml"
+      },
+      {
+        "ext": ["js"],
+        "name": "JavaScript",
+        "description": "JavaScript Source",
+        "role": "Editor",
+        "mimeType": "text/javascript"
+      },
+      {
+        "ext": ["html"],
+        "name": "HTML",
+        "description": "HTML Document",
+        "role": "Editor",
+        "mimeType": "text/html"
+      }
+    ],
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper"
