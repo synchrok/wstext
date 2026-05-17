@@ -533,6 +533,46 @@
         todoManager?.refreshDecorations();
       }
 
+      // OS-level "Open With" / argv handling.
+      // - Cold start: drain any file paths passed on the command line.
+      // - Warm start (single-instance): the Rust side emits `wstext:open-files`
+      //   when a second invocation is intercepted.
+      // Only the main window participates so files don't get duplicated into
+      // every secondary window the user happens to have open.
+      if (mainWindow && !adoptWindow) {
+        const { openFileByPath } = await import('./lib/fileOps.svelte');
+        const openMany = async (paths: string[]) => {
+          for (const p of paths) {
+            try { await openFileByPath(p); } catch (err) { console.warn('[app] open-with failed:', p, err); }
+          }
+          // Surface the window so the user sees the file they just opened.
+          try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            const w = getCurrentWindow();
+            await w.show().catch(() => {});
+            await w.unminimize().catch(() => {});
+            await w.setFocus().catch(() => {});
+          } catch { /* non-critical */ }
+        };
+
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const startup = await invoke<string[]>('take_startup_files');
+          if (startup && startup.length > 0) {
+            void openMany(startup);
+          }
+        } catch (err) {
+          console.warn('[app] take_startup_files failed:', err);
+        }
+
+        const unlistenOpenFiles = await listen<string[]>('wstext:open-files', ({ payload }) => {
+          if (Array.isArray(payload) && payload.length > 0) {
+            void openMany(payload);
+          }
+        });
+        ac.signal.addEventListener('abort', () => unlistenOpenFiles());
+      }
+
       // Check for updates after UI is ready (non-blocking).
       // Only the main window runs the check — secondary windows share the store but
       // must not display duplicate notifications.
