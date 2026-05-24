@@ -1,6 +1,6 @@
 [package]
 name = "wstext"
-version = "0.1.10"
+version = "0.1.11"
 description = "A SublimeText-inspired text editor"
 authors = ["wstext"]
 edition = "2021"
