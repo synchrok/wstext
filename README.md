@@ -42,7 +42,7 @@
 **Markdown Preview**
 - Split view: editor + live preview side by side
 - Toggle via status bar button or `Ctrl+Shift+M`
-- `.md` files open in split view automatically
+- `.md` files open in preview mode by default (toggle to editor/split anytime)
 - Syntax-highlighted code blocks, tables, task lists
 
 **Customization**

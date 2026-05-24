@@ -127,7 +127,7 @@ export async function openFileByPath(path: string): Promise<string | null> {
       isDirty: false,
       cursor: { line: 1, column: 1 },
       scrollTop: 0,
-      viewMode: language === 'markdown' ? 'split' : 'editor',
+      viewMode: language === 'markdown' ? 'preview' : 'editor',
       encoding,
       hasBOM,
       language,
