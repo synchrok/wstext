@@ -115,6 +115,42 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![is_portable, take_startup_files])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // macOS Finder passes opened files via NSApplication openFiles,
+            // NOT argv — without this handler, file-association launches silently
+            // drop the file. (Windows uses argv via the single-instance plugin.)
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = event {
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|url| url.to_file_path().ok())
+                    .filter(|p| p.is_file())
+                    .filter_map(|p| {
+                        std::fs::canonicalize(&p)
+                            .ok()
+                            .and_then(|c| c.to_str().map(String::from))
+                    })
+                    .collect();
+
+                if paths.is_empty() {
+                    return;
+                }
+
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
+
+                // Live emit + StartupFiles fallback: on cold start the event
+                // can fire before the webview registers its listener.
+                let _ = app_handle.emit("wstext:open-files", &paths);
+                if let Some(state) = app_handle.try_state::<StartupFiles>() {
+                    let mut guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
+                    guard.extend(paths);
+                }
+            }
+        });
 }
