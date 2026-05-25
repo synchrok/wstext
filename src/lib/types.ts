@@ -74,10 +74,14 @@ export interface SessionState {
 export interface AppSettings {
   /** Active Monaco theme name. */
   theme: ThemeName;
-  /** Font family for the editor (CSS font-family value). */
+  /** Font family for text files (markdown, mdx, plaintext). CSS font-family value. */
   fontFamily: string;
-  /** Font size in pixels. */
+  /** Font family for code/data files (json, yaml, source code, etc.). CSS font-family value. */
+  codeFontFamily: string;
+  /** Font size in pixels for text files. */
   fontSize: number;
+  /** Font size in pixels for code/data files. */
+  codeFontSize: number;
   /** Number of spaces per tab indent (2 or 4). */
   tabSize: 2 | 4;
   /** Monaco word wrap setting. */
@@ -137,7 +141,9 @@ export const SESSION_VERSION = 1;
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'one-dark',
   fontFamily: "'Pretendard', Consolas, 'Courier New', monospace",
+  codeFontFamily: "'D2Coding', Consolas, 'Courier New', Menlo, Monaco, monospace",
   fontSize: 14,
+  codeFontSize: 14,
   tabSize: 4,
   wordWrap: 'on',
   minimap: true,

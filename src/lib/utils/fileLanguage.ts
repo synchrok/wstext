@@ -86,6 +86,12 @@ export function detectLanguage(filePath: string): string {
   return EXTENSION_MAP[ext] ?? 'plaintext';
 }
 
+const TEXT_LANGUAGES = new Set(['markdown', 'mdx', 'plaintext']);
+
+export function isCodeLanguage(language: string): boolean {
+  return !TEXT_LANGUAGES.has(language);
+}
+
 /** All supported language IDs for the language picker dropdown. */
 export const SUPPORTED_LANGUAGES: string[] = [
   'plaintext',

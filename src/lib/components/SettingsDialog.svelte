@@ -6,7 +6,9 @@
     settings: {
       theme: string;
       fontFamily: string;
+      codeFontFamily: string;
       fontSize: number;
+      codeFontSize: number;
       tabSize: 2 | 4;
       minimap: boolean;
       checkboxEnabled: boolean;
@@ -48,8 +50,30 @@
   // Font tab state
   let primaryFont = $state('');
   let fallbackFont = $state('');
+  let codePrimaryFont = $state('');
+  let codeFallbackFont = $state('');
+  // Which font section the system-font list applies to when clicked.
+  let fontPickerTarget = $state<'text' | 'code'>('text');
   let filterText = $state('');
   let systemFonts = $state<string[]>([]);
+
+  function parseFontFamily(value: string): { primary: string; fallback: string } {
+    const parts = value.split(',').map((p) => p.trim().replace(/^['"]|['"]$/g, ''));
+    return {
+      primary: parts[0] ?? '',
+      fallback: parts.length > 1 ? parts.slice(1).join(', ') : '',
+    };
+  }
+
+  function composeFontFamily(primary: string, fallback: string, defaultFallback: string): string {
+    const parts: string[] = [];
+    const p = primary.trim();
+    if (p) parts.push(p.includes(' ') ? `'${p}'` : p);
+    const f = fallback.trim();
+    if (f) parts.push(f);
+    if (parts.length === 0) parts.push(defaultFallback);
+    return parts.join(', ');
+  }
 
   // Snapshot of the initial theme before any preview — used to detect actual changes
   const initialTheme = settings.theme;
@@ -70,14 +94,13 @@
   ];
 
   onMount(() => {
-    // Parse currentFontFamily into primary + fallback
-    const parts = localSettings.fontFamily.split(',').map(p => p.trim().replace(/^['"]|['"]$/g, ''));
-    if (parts.length > 0) {
-      primaryFont = parts[0];
-      if (parts.length > 1) {
-        fallbackFont = parts.slice(1).join(', ');
-      }
-    }
+    const text = parseFontFamily(localSettings.fontFamily);
+    primaryFont = text.primary;
+    fallbackFont = text.fallback;
+
+    const code = parseFontFamily(localSettings.codeFontFamily);
+    codePrimaryFont = code.primary;
+    codeFallbackFont = code.fallback;
 
     loadSystemFonts();
   });
@@ -115,19 +138,13 @@
     if (localSettings.copyAsCheckbox !== settings.copyAsCheckbox) changes.copyAsCheckbox = localSettings.copyAsCheckbox;
     
     // Check font settings
-    const fontParts: string[] = [];
-    if (primaryFont.trim()) {
-      const p = primaryFont.trim();
-      fontParts.push(p.includes(' ') ? `'${p}'` : p);
-    }
-    if (fallbackFont.trim()) {
-      fontParts.push(fallbackFont.trim());
-    }
-    if (fontParts.length === 0) fontParts.push('monospace');
-    const newFontFamily = fontParts.join(', ');
-    
+    const newFontFamily = composeFontFamily(primaryFont, fallbackFont, 'sans-serif');
+    const newCodeFontFamily = composeFontFamily(codePrimaryFont, codeFallbackFont, 'monospace');
+
     if (newFontFamily !== settings.fontFamily) changes.fontFamily = newFontFamily;
+    if (newCodeFontFamily !== settings.codeFontFamily) changes.codeFontFamily = newCodeFontFamily;
     if (localSettings.fontSize !== settings.fontSize) changes.fontSize = localSettings.fontSize;
+    if (localSettings.codeFontSize !== settings.codeFontSize) changes.codeFontSize = localSettings.codeFontSize;
     
     // Check excluded extensions
     const newExts = excludedExtText
@@ -160,18 +177,13 @@
     systemFonts.filter(f => f.toLowerCase().includes(filterText.toLowerCase()))
   );
 
-  let previewFontFamily = $derived(() => {
-    const parts: string[] = [];
-    if (primaryFont.trim()) {
-      const p = primaryFont.trim();
-      parts.push(p.includes(' ') ? `'${p}'` : p);
-    }
-    if (fallbackFont.trim()) {
-      parts.push(fallbackFont.trim());
-    }
-    if (parts.length === 0) parts.push('monospace');
-    return parts.join(', ');
-  });
+  let previewFontFamily = $derived(() =>
+    composeFontFamily(primaryFont, fallbackFont, 'sans-serif')
+  );
+
+  let previewCodeFontFamily = $derived(() =>
+    composeFontFamily(codePrimaryFont, codeFallbackFont, 'monospace')
+  );
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -314,76 +326,173 @@
           </div>
         {:else if activeTab === 'font'}
           <div class="tab-content">
-            <div class="field-row">
-              <div class="field flex-1">
-                <label for="primary-font" style:color={fgMuted}>Primary Font</label>
-                <input 
-                  id="primary-font" 
-                  type="text" 
-                  bind:value={primaryFont} 
+            <div class="font-section">
+              <div class="section-header" style:border-bottom-color={borderColor}>
+                <div class="section-title" style:color={fgColor}>Text Font</div>
+                <div class="section-desc" style:color={fgMuted}>Used for markdown and plain text files</div>
+              </div>
+
+              <div class="field-row">
+                <div class="field flex-1">
+                  <label for="primary-font" style:color={fgMuted}>Primary Font</label>
+                  <input
+                    id="primary-font"
+                    type="text"
+                    bind:value={primaryFont}
+                    onfocus={() => (fontPickerTarget = 'text')}
+                    style:background-color="rgba(0,0,0,0.2)"
+                    style:color={fgColor}
+                    style:border-color={fontPickerTarget === 'text' ? accentColor : borderColor}
+                  />
+                </div>
+                <div class="field size-field">
+                  <label for="font-size" style:color={fgMuted}>Size</label>
+                  <input
+                    id="font-size"
+                    type="number"
+                    min="8" max="40"
+                    bind:value={localSettings.fontSize}
+                    style:background-color="rgba(0,0,0,0.2)"
+                    style:color={fgColor}
+                    style:border-color={borderColor}
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="fallback-font" style:color={fgMuted}>Fallback Font(s)</label>
+                <input
+                  id="fallback-font"
+                  type="text"
+                  bind:value={fallbackFont}
+                  onfocus={() => (fontPickerTarget = 'text')}
+                  placeholder="e.g. Consolas, 'Courier New', monospace"
                   style:background-color="rgba(0,0,0,0.2)"
                   style:color={fgColor}
                   style:border-color={borderColor}
                 />
               </div>
-              <div class="field size-field">
-                <label for="font-size" style:color={fgMuted}>Size</label>
-                <input 
-                  id="font-size" 
-                  type="number" 
-                  min="8" max="40"
-                  bind:value={localSettings.fontSize} 
+
+              <div class="preview-box" style:border-color={borderColor} style:background-color="rgba(0,0,0,0.2)">
+                <div class="preview-label" style:color={fgMuted} style:background-color={bgColor}>Preview</div>
+                <div class="preview-text" style:font-family={previewFontFamily()} style:font-size="{localSettings.fontSize}px">
+                  가나다라 AaBbCc 012345
+                </div>
+              </div>
+            </div>
+
+            <div class="font-section">
+              <div class="section-header" style:border-bottom-color={borderColor}>
+                <div class="section-title" style:color={fgColor}>Code Font</div>
+                <div class="section-desc" style:color={fgMuted}>Used for JSON, YAML, source code, and other data files</div>
+              </div>
+
+              <div class="field-row">
+                <div class="field flex-1">
+                  <label for="code-primary-font" style:color={fgMuted}>Primary Font</label>
+                  <input
+                    id="code-primary-font"
+                    type="text"
+                    bind:value={codePrimaryFont}
+                    onfocus={() => (fontPickerTarget = 'code')}
+                    style:background-color="rgba(0,0,0,0.2)"
+                    style:color={fgColor}
+                    style:border-color={fontPickerTarget === 'code' ? accentColor : borderColor}
+                  />
+                </div>
+                <div class="field size-field">
+                  <label for="code-font-size" style:color={fgMuted}>Size</label>
+                  <input
+                    id="code-font-size"
+                    type="number"
+                    min="8" max="40"
+                    bind:value={localSettings.codeFontSize}
+                    style:background-color="rgba(0,0,0,0.2)"
+                    style:color={fgColor}
+                    style:border-color={borderColor}
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="code-fallback-font" style:color={fgMuted}>Fallback Font(s)</label>
+                <input
+                  id="code-fallback-font"
+                  type="text"
+                  bind:value={codeFallbackFont}
+                  onfocus={() => (fontPickerTarget = 'code')}
+                  placeholder="e.g. 'Courier New', Menlo, monospace"
                   style:background-color="rgba(0,0,0,0.2)"
                   style:color={fgColor}
                   style:border-color={borderColor}
                 />
               </div>
+
+              <div class="preview-box" style:border-color={borderColor} style:background-color="rgba(0,0,0,0.2)">
+                <div class="preview-label" style:color={fgMuted} style:background-color={bgColor}>Preview</div>
+                <div class="preview-text" style:font-family={previewCodeFontFamily()} style:font-size="{localSettings.codeFontSize}px">
+                  &lbrace; "key": "value" &rbrace;
+                </div>
+              </div>
             </div>
 
-            <div class="field">
-              <label for="font-filter" style:color={fgMuted}>Filter System Fonts</label>
-              <input 
-                id="font-filter" 
-                type="text" 
-                bind:value={filterText} 
-                placeholder="Search fonts..."
-                style:background-color="rgba(0,0,0,0.2)"
-                style:color={fgColor}
-                style:border-color={borderColor}
-              />
-            </div>
+            <div class="font-section">
+              <div class="section-header" style:border-bottom-color={borderColor}>
+                <div class="section-title" style:color={fgColor}>System Fonts</div>
+                <div class="section-desc" style:color={fgMuted}>
+                  Click a font to apply it to the
+                  <strong style:color={accentColor}>{fontPickerTarget === 'text' ? 'Text Font' : 'Code Font'}</strong>
+                  primary slot
+                </div>
+              </div>
 
-            <div class="font-list" style:border-color={borderColor} style:background-color="rgba(0,0,0,0.1)">
-              {#each filteredFonts as font}
-                <button 
-                  class="font-item" 
-                  class:selected={primaryFont === font}
-                  style:font-family={font}
-                  style:color={primaryFont === font ? accentColor : fgColor}
-                  onclick={() => primaryFont = font}
+              <div class="picker-target-row">
+                <button
+                  class="target-btn"
+                  class:active={fontPickerTarget === 'text'}
+                  style:color={fontPickerTarget === 'text' ? accentColor : fgMuted}
+                  style:border-color={fontPickerTarget === 'text' ? accentColor : borderColor}
+                  onclick={() => (fontPickerTarget = 'text')}
                 >
-                  {font}
+                  Text
                 </button>
-              {/each}
-            </div>
+                <button
+                  class="target-btn"
+                  class:active={fontPickerTarget === 'code'}
+                  style:color={fontPickerTarget === 'code' ? accentColor : fgMuted}
+                  style:border-color={fontPickerTarget === 'code' ? accentColor : borderColor}
+                  onclick={() => (fontPickerTarget = 'code')}
+                >
+                  Code
+                </button>
+                <input
+                  id="font-filter"
+                  type="text"
+                  class="filter-input"
+                  bind:value={filterText}
+                  placeholder="Search fonts..."
+                  style:background-color="rgba(0,0,0,0.2)"
+                  style:color={fgColor}
+                  style:border-color={borderColor}
+                />
+              </div>
 
-            <div class="field">
-              <label for="fallback-font" style:color={fgMuted}>Fallback Font(s)</label>
-              <input 
-                id="fallback-font" 
-                type="text" 
-                bind:value={fallbackFont} 
-                placeholder="e.g. 'Courier New', monospace"
-                style:background-color="rgba(0,0,0,0.2)"
-                style:color={fgColor}
-                style:border-color={borderColor}
-              />
-            </div>
-
-            <div class="preview-box" style:border-color={borderColor} style:background-color="rgba(0,0,0,0.2)">
-              <div class="preview-label" style:color={fgMuted} style:background-color={bgColor}>Preview</div>
-              <div class="preview-text" style:font-family={previewFontFamily()} style:font-size="{localSettings.fontSize}px">
-                가나다라 AaBbCc 012345
+              <div class="font-list" style:border-color={borderColor} style:background-color="rgba(0,0,0,0.1)">
+                {#each filteredFonts as font}
+                  {@const activePrimary = fontPickerTarget === 'text' ? primaryFont : codePrimaryFont}
+                  <button
+                    class="font-item"
+                    class:selected={activePrimary === font}
+                    style:font-family={font}
+                    style:color={activePrimary === font ? accentColor : fgColor}
+                    onclick={() => {
+                      if (fontPickerTarget === 'text') primaryFont = font;
+                      else codePrimaryFont = font;
+                    }}
+                  >
+                    {font}
+                  </button>
+                {/each}
               </div>
             </div>
           </div>
@@ -578,6 +687,59 @@
   }
 
   /* Font Tab */
+  .font-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .section-header {
+    padding-bottom: 8px;
+    border-bottom: 1px solid;
+    margin-bottom: 4px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .section-desc {
+    font-size: 11px;
+  }
+
+  .picker-target-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .target-btn {
+    background: none;
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+
+  .target-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .filter-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+  }
+
   .field-row {
     display: flex;
     gap: 12px;

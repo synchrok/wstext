@@ -3,6 +3,7 @@
 import './lib/platform';
 import './app.css';
 import 'pretendard/dist/web/variable/pretendardvariable.css';
+import '@kfonts/d2coding';
 import './lib/monacoWorkers';
 import { mount } from 'svelte';
 import App from './App.svelte';

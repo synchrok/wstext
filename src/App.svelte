@@ -42,6 +42,7 @@
   } from './lib/zoom';
   import { formatDocument } from './lib/formatting';
   import { setLanguage, getLanguageDisplayName } from './lib/languageOverride';
+  import { isCodeLanguage } from './lib/utils/fileLanguage';
   import { TodoManager, injectTodoStyles, setSupportBracketV, setCopyAsCheckbox } from './lib/todo';
   import { FileWatcher } from './lib/fileWatcher.svelte';
   import { updateState, checkForUpdate, installUpdate, dismissVersion, loadUpdateState } from './lib/stores/updater.svelte';
@@ -180,6 +181,17 @@
   // Derived: split view?
   let isSplit = $derived(activeTab?.viewMode === 'split');
 
+  // Font family and size applied to Monaco both depend on the active tab's
+  // language: code/data files use codeFontFamily/codeFontSize, text files
+  // (markdown, mdx, plaintext) use the default fontFamily/fontSize.
+  let isCodeTab = $derived(!!activeTab && isCodeLanguage(activeTab.language));
+  let effectiveFontFamily = $derived(
+    isCodeTab ? appSettings.codeFontFamily : appSettings.fontFamily
+  );
+  let effectiveFontSize = $derived(
+    isCodeTab ? appSettings.codeFontSize : appSettings.fontSize
+  );
+
   // Current status bar values
   let statusLine = $state(1);
   let statusColumn = $state(1);
@@ -253,8 +265,8 @@
           scale: 1,
           renderCharacters: false,
         },
-        fontSize: appSettings.fontSize,
-        fontFamily: appSettings.fontFamily,
+        fontSize: effectiveFontSize,
+        fontFamily: effectiveFontFamily,
         ...macStabilityOpts,
         // Cross-platform: keep editor calm during input.
         smoothScrolling: false,
@@ -287,9 +299,11 @@
       // Register tab functions (editor reference needed for switchTab)
       registerTabFunctions(openTab, (id) => switchTab(editor, id));
 
-      // Setup zoom (Ctrl+mousewheel)
+      // Setup zoom (Ctrl+mousewheel). The new size is routed to either
+      // fontSize or codeFontSize based on the active tab's language so the
+      // two sizes track independently.
       zoomCleanup = setupMouseWheelZoom(editor, (size) => {
-        updateSetting('fontSize', size);
+        updateSetting(isCodeTab ? 'codeFontSize' : 'fontSize', size);
       });
 
       // AbortController — ensures ALL event listeners are removed on HMR/unmount
@@ -592,24 +606,28 @@
     };
   });
 
-  // React to settings changes → update editor
+  // React to settings changes → update editor.
+  // Also reacts to active-tab language changes via `effectiveFontFamily` /
+  // `effectiveFontSize`, so switching between markdown and JSON swaps font
+  // and size automatically.
   $effect(() => {
     if (!editor) return;
     editor.updateOptions({
       theme: appSettings.theme,
-      fontSize: appSettings.fontSize,
-      fontFamily: appSettings.fontFamily,
+      fontSize: effectiveFontSize,
+      fontFamily: effectiveFontFamily,
       wordWrap: 'on',
       minimap: { enabled: appSettings.minimap },
       scrollbar: { horizontal: 'hidden', horizontalScrollbarSize: 0 },
     });
     setTheme(appSettings.theme);
 
-    // When the font family actually changes (settings dialog), force Monaco
-    // to refresh its cached char-width metrics. Skipped on zoom/theme changes
-    // to avoid measurement churn on the hot path.
-    if (appSettings.fontFamily !== prevFontFamily) {
-      prevFontFamily = appSettings.fontFamily;
+    // When the font family actually changes (settings dialog OR tab switch
+    // across the code/text boundary), force Monaco to refresh its cached
+    // char-width metrics. Skipped on zoom/theme changes to avoid measurement
+    // churn on the hot path.
+    if (effectiveFontFamily !== prevFontFamily) {
+      prevFontFamily = effectiveFontFamily;
       monaco.editor.remeasureFonts();
     }
   });
@@ -1153,7 +1171,9 @@
       settings={{
         theme: appSettings.theme,
         fontFamily: appSettings.fontFamily,
+        codeFontFamily: appSettings.codeFontFamily,
         fontSize: appSettings.fontSize,
+        codeFontSize: appSettings.codeFontSize,
         tabSize: appSettings.tabSize,
         minimap: appSettings.minimap,
         checkboxEnabled: appSettings.checkboxEnabled,
@@ -1181,10 +1201,21 @@
         if (changes.theme) {
           setTheme(changes.theme);
         }
-        if (changes.fontFamily || changes.fontSize) {
+        if (
+          changes.fontFamily ||
+          changes.codeFontFamily ||
+          changes.fontSize ||
+          changes.codeFontSize
+        ) {
+          // Resolve font + size for the currently active tab using the same
+          // text/code rule as the $effect above, applying any pending changes.
+          const nextTextFamily = changes.fontFamily ?? appSettings.fontFamily;
+          const nextCodeFamily = changes.codeFontFamily ?? appSettings.codeFontFamily;
+          const nextTextSize = changes.fontSize ?? appSettings.fontSize;
+          const nextCodeSize = changes.codeFontSize ?? appSettings.codeFontSize;
           editor.updateOptions({
-            fontFamily: changes.fontFamily ?? appSettings.fontFamily,
-            fontSize: changes.fontSize ?? appSettings.fontSize,
+            fontFamily: isCodeTab ? nextCodeFamily : nextTextFamily,
+            fontSize: isCodeTab ? nextCodeSize : nextTextSize,
           });
         }
         if (changes.minimap !== undefined) {
