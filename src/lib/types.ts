@@ -40,8 +40,10 @@ export interface TabState {
   isDirty: boolean;
   /** Last known cursor position. */
   cursor: { line: number; column: number };
-  /** Scroll offset in pixels from top. */
+  /** Scroll offset in pixels from top (Monaco editor). */
   scrollTop: number;
+  /** Scroll offset in pixels from top of the markdown preview pane. */
+  previewScrollTop?: number;
   /** Current view mode for this tab. */
   viewMode: ViewMode;
   /** Encoding of the file (for round-trip preservation). */

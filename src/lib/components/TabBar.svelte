@@ -134,6 +134,24 @@
       onTabMiddleClick?.(tabId);
     }
   }
+
+  /** Whether the "open tabs" dropdown is showing. */
+  let showTabMenu = $state(false);
+
+  function toggleTabMenu(): void {
+    showTabMenu = !showTabMenu;
+  }
+
+  function selectFromMenu(tabId: string): void {
+    showTabMenu = false;
+    onTabClick?.(tabId);
+    // After the active tab updates, scroll it into view within the strip so
+    // the user can see the tab they just jumped to.
+    setTimeout(() => {
+      const el = document.querySelector('.tabs-area .tab.active');
+      el?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }, 0);
+  }
 </script>
 
 <div class="tab-bar" style:background-color={bgColor} style:border-bottom="1px solid {borderColor}">
@@ -190,7 +208,57 @@
       </div>
     {/each}
   </div>
+
+  <!-- Open-tabs dropdown: lists every tab so they're reachable even when the
+       strip overflows horizontally. -->
+  {#if tabs.length > 0}
+    <button
+      class="tab-menu-button"
+      class:active={showTabMenu}
+      onclick={toggleTabMenu}
+      title="Open tabs ({tabs.length})"
+      aria-label="Show all open tabs"
+      style:color={showTabMenu ? accentColor : tabInactiveFg}
+      style:border-left="1px solid {borderColor}"
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  {/if}
 </div>
+
+{#if showTabMenu}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="tab-menu-overlay" onclick={() => (showTabMenu = false)}></div>
+  <div
+    class="tab-menu"
+    style:background-color={bgColor}
+    style:border="1px solid {borderColor}"
+  >
+    {#each tabs as tab (tab.id)}
+      <button
+        class="tab-menu-item"
+        class:active={tab.id === activeTabId}
+        type="button"
+        onclick={() => selectFromMenu(tab.id)}
+        style:color={tab.id === activeTabId ? tabActiveFg : tabInactiveFg}
+        title={tab.filePath ?? tab.title}
+      >
+        {#if tab.id === activeTabId}
+          <span class="tab-menu-marker" style:color={accentColor}>▸</span>
+        {:else}
+          <span class="tab-menu-marker"></span>
+        {/if}
+        <span class="tab-menu-title">{tab.title}</span>
+        {#if tab.isDirty}
+          <span class="tab-menu-dirty" title="Unsaved changes">●</span>
+        {/if}
+      </button>
+    {/each}
+  </div>
+{/if}
 
 <style>
   .tab-bar {
@@ -199,6 +267,7 @@
     align-items: stretch;
     flex-shrink: 0;
     height: 34px;
+    position: relative;
   }
 
   .sidebar-toggle {
@@ -308,5 +377,90 @@
   .tab-close:hover {
     opacity: 1 !important;
     background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .tab-menu-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.1s, background-color 0.1s;
+  }
+
+  .tab-menu-button:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .tab-menu-button.active {
+    opacity: 1;
+  }
+
+  .tab-menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+  }
+
+  .tab-menu {
+    position: absolute;
+    top: 34px;
+    right: 0;
+    z-index: 100;
+    min-width: 180px;
+    max-width: 320px;
+    max-height: 60vh;
+    overflow-y: auto;
+    border-radius: 0 0 4px 4px;
+    padding: 4px 0;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .tab-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    padding: 5px 12px 5px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    white-space: nowrap;
+  }
+
+  .tab-menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .tab-menu-item.active {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .tab-menu-marker {
+    flex-shrink: 0;
+    width: 10px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .tab-menu-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tab-menu-dirty {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #E6DB74;
+    margin-left: 4px;
   }
 </style>

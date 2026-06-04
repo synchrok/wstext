@@ -1093,12 +1093,16 @@
           ></div>
         {/if}
         <div class="preview-container" style:flex={activeTab.viewMode === 'split' ? `0 0 ${100 - splitPercent}%` : ''}>
-          <MarkdownPreview
-            source={activeTab.content}
-            filePath={activeTab.filePath ?? undefined}
-            mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
-            isDark={!LIGHT_THEMES.has(appSettings.theme)}
-          />
+          {#key activeTabId}
+            <MarkdownPreview
+              source={activeTab.content}
+              filePath={activeTab.filePath ?? undefined}
+              mode={activeTab.viewMode === 'split' ? 'split' : 'toggle'}
+              isDark={!LIGHT_THEMES.has(appSettings.theme)}
+              initialScrollTop={activeTab.previewScrollTop ?? 0}
+              onScroll={(top) => { const t = getActiveTab(); if (t) t.previewScrollTop = top; }}
+            />
+          {/key}
         </div>
       {/if}
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { renderMarkdown } from '../markdown';
   import { openUrl } from '@tauri-apps/plugin-opener';
 
@@ -7,6 +8,10 @@
     filePath?: string;
     mode?: 'toggle' | 'split';
     isDark?: boolean;
+    /** Scroll offset (px) to restore on mount — persisted per tab. */
+    initialScrollTop?: number;
+    /** Fired when the user scrolls the preview, with the new scrollTop. */
+    onScroll?: (scrollTop: number) => void;
   }
 
   let {
@@ -14,14 +19,32 @@
     filePath = '',
     mode = 'toggle',
     isDark = true,
+    initialScrollTop = 0,
+    onScroll = undefined,
   }: Props = $props();
 
   let rendered = $state('');
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let firstRender = true;
 
-  // Re-render with 150ms debounce — fast enough to feel live
+  /** The scrollable preview container. */
+  let container: HTMLDivElement | undefined = $state();
+  /** Guards scroll save/restore: don't emit scroll events until we've
+   *  restored the persisted position, otherwise the initial layout's
+   *  scrollTop=0 would clobber the stored value. */
+  let scrollRestored = false;
+  /** Prevents scheduling the deferred restore more than once. */
+  let restoreScheduled = false;
+
+  // Render markdown. First render is synchronous (avoids a blank flash when
+  // switching tabs); subsequent edits are debounced to feel live while typing.
   $effect(() => {
     const text = source; // Track reactivity on source
+    if (firstRender) {
+      rendered = renderMarkdown(text, filePath || undefined);
+      firstRender = false;
+      return;
+    }
     if (debounceTimer !== undefined) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       rendered = renderMarkdown(text, filePath || undefined);
@@ -35,6 +58,29 @@
       }
     };
   });
+
+  // Restore persisted scroll position once content is actually painted.
+  // IMPORTANT: setting `rendered` inside an effect only schedules the
+  // `{@html}` DOM update for a later flush — the container is still empty
+  // (height 0) during this synchronous pass, so writing scrollTop now would
+  // clamp to 0. Defer via tick() (DOM updated) + rAF (layout computed).
+  $effect(() => {
+    const _ready = rendered; // depend on rendered HTML
+    if (scrollRestored || restoreScheduled || !container || !_ready) return;
+    restoreScheduled = true;
+    void tick().then(() => {
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop = initialScrollTop;
+        scrollRestored = true;
+      });
+    });
+  });
+
+  function handleScroll(): void {
+    if (scrollRestored && container) {
+      onScroll?.(container.scrollTop);
+    }
+  }
 
   function handleClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
@@ -60,9 +106,11 @@
 </script>
 
 <div
+  bind:this={container}
   class="markdown-preview"
   class:dark={isDark}
   class:split={mode === 'split'}
+  onscroll={handleScroll}
 >
   <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
