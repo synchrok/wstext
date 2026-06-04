@@ -1,6 +1,7 @@
 import { load } from '@tauri-apps/plugin-store';
-import { readTextFile, writeTextFile, exists, mkdir, remove } from '@tauri-apps/plugin-fs';
+import { readTextFile, writeTextFile, exists, mkdir, remove, stat } from '@tauri-apps/plugin-fs';
 import { BaseDirectory } from '@tauri-apps/plugin-fs';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { SessionState, TabState } from './types';
 import { SESSION_VERSION } from './types';
@@ -139,9 +140,12 @@ async function restoreSession(): Promise<void> {
       return; // No session or schema mismatch — fresh start
     }
 
-    // Restore each tab
+    // Restore each tab. `savedAt` is the sync point: any disk mtime newer
+    // than this means the file was externally modified while WSText was
+    // closed (which only matters for dirty tabs — see restoreTab).
+    const savedAt = typeof saved.savedAt === 'number' ? saved.savedAt : 0;
     for (const tabData of saved.tabs) {
-      await restoreTab(tabData);
+      await restoreTab(tabData, savedAt);
     }
   } catch {
     // Corrupted session — fresh start (no error shown)
@@ -150,20 +154,84 @@ async function restoreSession(): Promise<void> {
 
 /**
  * Restore a single tab from session data.
+ *
+ * Content-source policy for file-backed tabs:
+ *
+ *           |   disk.mtime <= savedAt   |   disk.mtime > savedAt
+ *   --------+--------------------------+----------------------------
+ *   CLEAN   |   re-read disk           |   re-read disk
+ *           |   (idempotent)           |   (picks up external edits)
+ *   --------+--------------------------+----------------------------
+ *   DIRTY   |   use session content    |   CONFLICT — ask the user
+ *           |   (preserves unsaved     |   (both sides have changes
+ *           |    edits — the original  |    since the last sync)
+ *           |    bug fix)              |
+ *
+ * Untitled tabs always restore from the per-tab backup file when one exists,
+ * falling back to the session snapshot.
  */
-async function restoreTab(tab: TabState): Promise<void> {
+async function restoreTab(tab: TabState, sessionSavedAt: number): Promise<void> {
   try {
     let content = tab.content;
+    let isDirty = tab.isDirty;
+    let encoding = tab.encoding;
+    let hasBOM = tab.hasBOM;
 
     if (tab.filePath) {
-      // File-backed tab: re-read from disk (use cached content as fallback)
-      try {
-        const { readFileWithEncoding } = await import('./utils/encoding');
-        const result = await readFileWithEncoding(tab.filePath);
-        content = result.content;
-      } catch {
-        // File read failed — silently use whatever content we have from session cache
-        // (content may be empty string for new/empty files — that's fine)
+      if (!tab.isDirty) {
+        // Clean tab — prefer fresh disk content so external edits show up.
+        try {
+          const { readFileWithEncoding } = await import('./utils/encoding');
+          const result = await readFileWithEncoding(tab.filePath);
+          content = result.content;
+        } catch {
+          // File read failed — silently use whatever content we have from
+          // session cache (content may be empty string for new/empty files).
+        }
+      } else {
+        // Dirty tab — check whether disk was externally modified while
+        // WSText was closed (the only situation where preferring session
+        // content alone could lose external work).
+        let diskMtimeMs = 0;
+        try {
+          const info = await stat(tab.filePath);
+          diskMtimeMs = info.mtime instanceof Date ? info.mtime.getTime() : 0;
+        } catch {
+          // File missing or unreadable — fall through; session content wins.
+        }
+
+        if (diskMtimeMs > 0 && diskMtimeMs > sessionSavedAt) {
+          // Conflict: both session and disk have changes after the last
+          // sync point. Ask the user which side wins. Default (cancel/ESC)
+          // = keep the user's unsaved edits — never silently destroy work.
+          const useDisk = await confirm(
+            '이 파일이 외부에서 변경되었지만, 저장하지 않은 편집사항도 남아있습니다.\n\n' +
+              '"디스크 내용 사용": 외부의 최신 내용을 불러옵니다 (저장하지 않은 편집사항은 사라집니다)\n' +
+              '"내 편집 유지": 저장하지 않은 편집사항을 그대로 유지합니다',
+            {
+              title: tab.title,
+              kind: 'warning',
+              okLabel: '디스크 내용 사용',
+              cancelLabel: '내 편집 유지',
+            }
+          );
+          if (useDisk) {
+            try {
+              const { readFileWithEncoding } = await import('./utils/encoding');
+              const result = await readFileWithEncoding(tab.filePath);
+              content = result.content;
+              encoding = result.encoding;
+              hasBOM = result.hasBOM;
+              isDirty = false; // User accepted disk content — tab is now clean.
+            } catch {
+              // Disk read failed despite stat succeeding — keep session.
+            }
+          }
+          // else: keep session content (already in `content`); tab stays dirty.
+        }
+        // else: disk is older or same age as the session snapshot. Session
+        // contains the latest version — use it. This is the auto-update /
+        // normal-close path that was previously losing user data.
       }
     } else {
       // Untitled tab: try backup file first
@@ -186,7 +254,7 @@ async function restoreTab(tab: TabState): Promise<void> {
     // Open tab via global event (tabs store handles the actual tab creation)
     window.dispatchEvent(
       new CustomEvent('wstext:restore-tab', {
-        detail: { ...tab, content },
+        detail: { ...tab, content, isDirty, encoding, hasBOM },
       })
     );
   } catch {
